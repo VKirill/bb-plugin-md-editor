@@ -61,3 +61,16 @@ test("thread storage", async () => {
   const where = await locate(sdk, { ...base, kind: "thread-storage", threadId: "thr_s" }, "artifacts/r.md");
   assert.deepEqual(where, { hostId: "host_mini", absPath: "/data/thr_s/artifacts/r.md", rootPath: "/data/thr_s" });
 });
+
+test("changed-file paths relative to an enclosing Git root resolve there", async () => {
+  const existing = new Set(["/repo/.git", "/repo/.agents/notes.md", "/repo/apps/bot/README.md"]);
+  const withFs: LocateSdk = {
+    ...sdk,
+    environments: { get: async () => ({ hostId: "host_ovh", path: "/repo/apps/bot" }) },
+    hosts: { pathsExist: async ({ paths }) => ({ existence: Object.fromEntries(paths.map((p) => [p, existing.has(p)])) }) },
+  };
+  const src = { ...base, kind: "workspace" as const, environmentId: "env_bot" };
+  assert.deepEqual(await locate(withFs, src, ".agents/notes.md"), { hostId: "host_ovh", absPath: "/repo/.agents/notes.md", rootPath: "/repo/apps/bot" });
+  assert.equal((await locate(withFs, src, "README.md")).absPath, "/repo/apps/bot/README.md");
+  assert.equal((await locate(withFs, src, "missing.md")).absPath, "/repo/apps/bot/missing.md");
+});
