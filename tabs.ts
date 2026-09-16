@@ -79,7 +79,7 @@ export function mountTabMenu(context: PluginContentScriptContext) {
     menu = null;
   };
 
-  const show = (event: MouseEvent, strip: Element, item: HTMLElement) => {
+  const show = (strip: Element, item: HTMLElement) => {
     hide();
     const items = tabItems(strip);
     const index = items.indexOf(item);
@@ -136,13 +136,18 @@ export function mountTabMenu(context: PluginContentScriptContext) {
     }
     document.body.appendChild(menu);
     const rect = menu.getBoundingClientRect();
-    // A browser tab is a native view painted above the page, so a menu inside
-    // the panel would disappear under it. Keep the menu left of the panel when
-    // there is room; otherwise fall back to the cursor.
-    const panelLeft = strip.getBoundingClientRect().left;
-    const x = panelLeft - rect.width - 6 >= 8 ? panelLeft - rect.width - 6 : Math.min(event.clientX, window.innerWidth - rect.width - 8);
+    // Open under the clicked tab. A visible browser tab is a native view painted
+    // above the page and would cover the menu, so then move it left of the panel.
+    const stripRect = strip.getBoundingClientRect();
+    const tabRect = item.getBoundingClientRect();
+    const browserVisible = Array.from(document.querySelectorAll('[data-testid="browser-tab-nav-bar"]')).some((bar) => {
+      const r = bar.getBoundingClientRect();
+      return r.width > 0 && r.left < stripRect.right && r.right > stripRect.left;
+    });
+    let x = Math.min(tabRect.left, window.innerWidth - rect.width - 8);
+    if (browserVisible && stripRect.left - rect.width - 6 >= 8) x = stripRect.left - rect.width - 6;
     menu.style.left = `${Math.max(8, x)}px`;
-    menu.style.top = `${Math.min(event.clientY, window.innerHeight - rect.height - 8)}px`;
+    menu.style.top = `${Math.min(tabRect.bottom + 4, window.innerHeight - rect.height - 8)}px`;
   };
 
   const onContextMenu = (event: MouseEvent) => {
@@ -154,7 +159,7 @@ export function mountTabMenu(context: PluginContentScriptContext) {
     if (!item) return;
     event.preventDefault();
     event.stopPropagation();
-    show(event, strip, item);
+    show(strip, item);
   };
   const onPointerDown = (event: Event) => {
     if (menu && !menu.contains(event.target as Node)) hide();
