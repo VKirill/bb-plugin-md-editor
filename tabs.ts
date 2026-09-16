@@ -136,7 +136,12 @@ export function mountTabMenu(context: PluginContentScriptContext) {
     }
     document.body.appendChild(menu);
     const rect = menu.getBoundingClientRect();
-    menu.style.left = `${Math.min(event.clientX, window.innerWidth - rect.width - 8)}px`;
+    // A browser tab is a native view painted above the page, so a menu inside
+    // the panel would disappear under it. Keep the menu left of the panel when
+    // there is room; otherwise fall back to the cursor.
+    const panelLeft = strip.getBoundingClientRect().left;
+    const x = panelLeft - rect.width - 6 >= 8 ? panelLeft - rect.width - 6 : Math.min(event.clientX, window.innerWidth - rect.width - 8);
+    menu.style.left = `${Math.max(8, x)}px`;
     menu.style.top = `${Math.min(event.clientY, window.innerHeight - rect.height - 8)}px`;
   };
 
