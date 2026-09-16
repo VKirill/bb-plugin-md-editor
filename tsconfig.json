@@ -1,0 +1,46 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "lib": [
+      "ESNext",
+      "DOM"
+    ],
+    "types": [
+      "node"
+    ],
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    "noEmit": true,
+    "skipLibCheck": false,
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "*.test.ts",
+    "app.tsx",
+    "components",
+    "context-menu.tsx",
+    "decorations.ts",
+    "editor.tsx",
+    "frontmatter.ts",
+    "hooks",
+    "i18n.ts",
+    "lib",
+    "links.ts",
+    "locate.ts",
+    "md-extensions.ts",
+    "mermaid-edit.ts",
+    "quote.ts",
+    "rich.tsx",
+    "server.ts",
+    "tabs.ts",
+    "tree.ts",
+    "views.tsx"
+  ]
+}
