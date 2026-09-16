@@ -67,6 +67,13 @@ export default function plugin(bb: BbPluginApi) {
   const hostName = async (hostId: string) =>
     (await bb.sdk.hosts.get({ hostId }).catch(() => null))?.name || hostId;
 
+  bb.agents.configure(() => ({
+    tools: [],
+    skills: ["markdown-pro"],
+    instructions:
+      "When you create or substantially rewrite a Markdown (.md) file for the user, follow the markdown-pro skill: callouts, collapsible details, Mermaid, LaTeX, task lists, status tables, directory trees and YAML front matter render as a formatted, editable document in BB's Markdown PRO editor.",
+  }));
+
   bb.rpc.register(rpcContract, {
     open: async ({ source, path, locale = "en" }) => {
       const where = await locate(sdk, source, path, locale);
