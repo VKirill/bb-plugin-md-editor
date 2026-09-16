@@ -140,12 +140,23 @@ export function mountTabMenu(context: PluginContentScriptContext) {
     // above the page and would cover the menu, so then move it left of the panel.
     const stripRect = strip.getBoundingClientRect();
     const tabRect = item.getBoundingClientRect();
-    const browserVisible = Array.from(document.querySelectorAll('[data-testid="browser-tab-nav-bar"]')).some((bar) => {
+    // The native view fills the browser tab's container, which starts left of
+    // the tab strip, so measure the widest ancestor of the visible address bar.
+    let browserLeft: number | null = null;
+    for (const bar of Array.from(document.querySelectorAll('[data-testid="browser-tab-nav-bar"]'))) {
       const r = bar.getBoundingClientRect();
-      return r.width > 0 && r.left < stripRect.right && r.right > stripRect.left;
-    });
+      if (r.width === 0 || r.left >= stripRect.right || r.right <= stripRect.left) continue;
+      let left = Math.min(r.left, stripRect.left);
+      for (let el = bar.parentElement, depth = 0; el && depth < 6; el = el.parentElement, depth += 1) {
+        const a = el.getBoundingClientRect();
+        // Stop at containers that reach into the chat column.
+        if (a.width >= window.innerWidth * 0.95 || a.left < stripRect.left - 160) break;
+        left = Math.min(left, a.left);
+      }
+      browserLeft = browserLeft === null ? left : Math.min(browserLeft, left);
+    }
     let x = Math.min(tabRect.left, window.innerWidth - rect.width - 8);
-    if (browserVisible && stripRect.left - rect.width - 6 >= 8) x = stripRect.left - rect.width - 6;
+    if (browserLeft !== null && browserLeft - rect.width - 8 >= 8) x = browserLeft - rect.width - 8;
     menu.style.left = `${Math.max(8, x)}px`;
     menu.style.top = `${Math.min(tabRect.bottom + 4, window.innerHeight - rect.height - 8)}px`;
   };
