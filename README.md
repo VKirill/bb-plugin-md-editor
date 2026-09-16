@@ -8,7 +8,7 @@ Edit Markdown files in [BB](https://getbb.app) as formatted documents: a style t
 
 - **Formatted editing** of `.md`, `.markdown`, `.mdx` from chat links, the file picker, Tasks and `bb thread open`.
 - **Agent Markdown preserved on save**: callouts `> [!NOTE]`, `<details>`, footnotes, `<kbd>`/`<sub>`/`<sup>`, `==highlight==`, emoji shortcodes, raw HTML and comments. Opening a file never rewrites it; editing changes only the touched lines. Text such as `file_name.md`, `5*3` or `Map<K, V>` is not escaped.
-- **Mermaid** rendering and flowchart editing by right-click (rename, add block or yes/no branch, change shape, delete), plus templates for nine diagram types.
+- **Mermaid** rendering and flowchart editing by right-click (rename, add block or yes/no branch, change shape, delete), plus templates for nine diagram types. A magnifier button opens the diagram full screen with zoom and pan.
 - **LaTeX** with `$…$`, `\(…\)`, `$$…$$`, `\[…\]`.
 - **Code blocks** with highlighting for 37 languages and auto-detection, diff colors, JSON formatting, Copy and collapsing of long blocks.
 - **Directory trees** (`├──`, `└──`) rendered as a folder tree.
@@ -55,6 +55,7 @@ Layout:
 | `md-extensions.ts` | Markdown syntax that round-trips (callouts, details, HTML, footnotes, emoji, math) and minimal escaping |
 | `views.tsx`, `decorations.ts` | Callout/details/HTML views; status badges and entity links |
 | `context-menu.tsx`, `quote.ts` | Editor right-click menu and `path:lines` mapping |
+| `diagram-zoom.tsx` | Full-screen diagram viewer with zoom and pan |
 | `mermaid-edit.ts`, `tree.ts` | Flowchart source edits; directory tree parsing |
 | `server.ts`, `locate.ts`, `links.ts` | Machine/path resolution, hash-guarded reads and writes, link targets |
 | `tabs.ts` | Side-panel tab context menu |

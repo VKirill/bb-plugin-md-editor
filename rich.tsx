@@ -35,7 +35,8 @@ import {
   TextItalicIcon,
   TextStrikethroughIcon,
 } from "@hugeicons/core-free-icons";
-import { File01Icon, Folder01Icon } from "@hugeicons/core-free-icons";
+import { File01Icon, Folder01Icon, ZoomInIcon } from "@hugeicons/core-free-icons";
+import { DiagramZoom } from "./diagram-zoom";
 import { cn } from "@/lib/utils";
 import { SHAPES, addAfter, addNode, deleteNode, isFlowchart, labelOf, nodeIdFromSvg, renameNode, reshapeNode, type Shape } from "./mermaid-edit";
 import { looksLikeTree, parseTree } from "./tree";
@@ -217,6 +218,8 @@ function CodeBlockView({ node, updateAttributes, editor, getPos }: ReactNodeView
   const [editing, setEditing] = useState(!visual || node.textContent.trim() === "");
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [zoomSvg, setZoomSvg] = useState<SVGSVGElement | null>(null);
+  const diagramBox = useRef<HTMLDivElement>(null);
   const detected = useMemo(() => (language || visual ? null : detectLanguage(node.textContent)), [language, visual, node.textContent]);
   const effective = lower || detected || "";
   const lineCount = node.textContent.split("\n").length;
@@ -267,6 +270,17 @@ function CodeBlockView({ node, updateAttributes, editor, getPos }: ReactNodeView
           {jsonPretty && editor.isEditable ? (
             <button type="button" className="mdpro-chip" onClick={() => setCode(jsonPretty)}>{t("formatJson")}</button>
           ) : null}
+          {mermaid ? (
+            <button
+              type="button"
+              className="mdpro-chip mdpro-chip-icon"
+              data-tip={t("zoomDiagram")}
+              aria-label={t("zoomDiagram")}
+              onClick={() => setZoomSvg(diagramBox.current?.querySelector<SVGSVGElement>(".mdpro-diagram svg") ?? null)}
+            >
+              <HugeiconsIcon icon={ZoomInIcon} size={15} strokeWidth={1.8} />
+            </button>
+          ) : null}
           {visual ? (
             <button type="button" className="mdpro-chip" onClick={() => setEditing((v) => !v)}>
               {editing ? t("hideCode") : t("editCode")}
@@ -276,8 +290,9 @@ function CodeBlockView({ node, updateAttributes, editor, getPos }: ReactNodeView
         </span>
       </div>
       {mermaid ? (
-        <div contentEditable={false}>
+        <div ref={diagramBox} contentEditable={false}>
           <MermaidDiagram code={node.textContent} onChange={editor.isEditable ? setCode : null} />
+          {zoomSvg ? <DiagramZoom source={zoomSvg} onClose={() => setZoomSvg(null)} /> : null}
         </div>
       ) : null}
       {tree ? (
@@ -912,6 +927,21 @@ export const RICH_CSS = `
 .mdpro-code-mermaid .mdpro-chip:hover { background: var(--accent); color: var(--foreground); }
 .mdpro-code-mermaid pre { background: #1a1f2b; color: #e6e8ee; }
 .mdpro-hidden { display: none; }
+.mdpro-chip-icon { position: relative; display: inline-flex; align-items: center; padding: .2em .45em; }
+.mdpro-chip-icon[data-tip]:hover::after, .mdpro-zoom-btn[data-tip]:hover::after { content: attr(data-tip); position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); white-space: nowrap; background: var(--foreground); color: var(--background); font-size: 11px; font-weight: 500; line-height: 1.3; padding: 4px 8px; border-radius: 6px; z-index: 60; pointer-events: none; opacity: 0; animation: mdpro-tip 120ms ease-out 350ms forwards; }
+.mdpro-zoom-btn[data-tip]:hover::after { top: auto; bottom: calc(100% + 8px); }
+.mdpro-zoom { position: fixed; inset: 0; z-index: 2147483000; display: flex; padding: 3vmin; background: rgba(0,0,0,.55); }
+.mdpro-zoom-card { position: relative; flex: 1; overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: var(--background); color: var(--foreground); box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+.mdpro-zoom-stage { position: absolute; inset: 0; overflow: hidden; cursor: grab; touch-action: none; user-select: none; }
+.mdpro-zoom-stage:active { cursor: grabbing; }
+.mdpro-zoom-content { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.mdpro-zoom-content svg { display: block; }
+.mdpro-zoom-bar { position: absolute; left: 50%; bottom: 36px; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; padding: 4px; border: 1px solid var(--border); border-radius: 10px; background: var(--popover, var(--background)); box-shadow: 0 6px 20px rgba(0,0,0,.15); }
+.mdpro-zoom-btn { position: relative; display: inline-flex; padding: 6px; border-radius: 7px; color: var(--muted-foreground); }
+.mdpro-zoom-btn:hover { background: var(--accent); color: var(--foreground); }
+.mdpro-zoom-level { min-width: 3.4em; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted-foreground); }
+.mdpro-zoom-sep { width: 1px; height: 18px; margin: 0 3px; background: var(--border); }
+.mdpro-zoom-hint { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; font-size: 11px; color: var(--muted-foreground); pointer-events: none; }
 .mdpro-diagram-editable .node { cursor: context-menu; }
 .mdpro-diagram-editable .node:hover rect, .mdpro-diagram-editable .node:hover polygon, .mdpro-diagram-editable .node:hover circle, .mdpro-diagram-editable .node:hover path { stroke: var(--mdpro-accent, #6366f1) !important; stroke-width: 2px !important; }
 .mdpro-diagram-hint { padding: 0 1.2em .7em; font-size: 11px; color: var(--muted-foreground); text-align: center; }
