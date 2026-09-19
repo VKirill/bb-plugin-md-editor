@@ -15,7 +15,7 @@ import Highlight from "@tiptap/extension-highlight";
 import { Markdown, MarkdownManager } from "@tiptap/markdown";
 import { toast } from "sonner";
 import { Emoji, FootnoteDef, FootnoteRef, Kbd, RawHtmlInline, RichBlockMath, RichInlineMath, Subscript, Superscript, installMinimalEscaping } from "./md-extensions";
-import { CALLOUT_MENU, CalloutWithView, DetailsWithView, RawHtmlWithView } from "./views";
+import { CALLOUT_MENU, CalloutWithView, DetailsWithView, HtmlRegionWithView, RawHtmlWithView } from "./views";
 import { AgentDecorations } from "./decorations";
 import { EditorContextMenu, currentFragmentMarkdown, type ContextItem, type ContextTarget } from "./context-menu";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -494,6 +494,7 @@ export function RichMarkdownEditor(props: RichEditorProps) {
       FootnoteDef,
       DetailsWithView,
       CalloutWithView,
+      HtmlRegionWithView,
       AgentDecorations,
       Placeholder.configure({ placeholder: t("placeholder") }),
       Markdown.configure({ markedOptions: { gfm: true } }),
@@ -992,6 +993,19 @@ export const RICH_CSS = `
 .mdpro-details-head { display: flex; align-items: center; gap: .4em; font-weight: 600; }
 .mdpro-details-summary { flex: 1; background: transparent; border: 0; outline: none; font: inherit; color: var(--foreground); }
 .mdpro-details-body { margin-top: .5em; padding-left: 1.7em; }
+.mdpro-region { margin: 1.1em 0; border: 1px dashed color-mix(in oklab, var(--mdpro-accent, #6366f1) 40%, var(--border)); border-radius: 12px; background: color-mix(in oklab, var(--mdpro-accent, #6366f1) 5%, transparent); }
+.mdpro-region-head { display: flex; align-items: center; gap: .45em; padding: .4em .75em; color: var(--muted-foreground); font-size: 12px; }
+.mdpro-region-kind { font-weight: 650; letter-spacing: .02em; text-transform: uppercase; font-size: 10.5px; color: var(--mdpro-accent, #6366f1); }
+.mdpro-region-key { font-family: var(--font-mono, ui-monospace, Menlo, monospace); font-size: 11.5px; color: var(--foreground); background: color-mix(in oklab, var(--muted) 50%, transparent); padding: .1em .45em; border-radius: 5px; }
+.mdpro-region-hint { margin-left: auto; font-size: 11px; opacity: .8; }
+.mdpro-region-body { padding: .15em 1em .85em; }
+.mdpro-region-body > * + * { margin-top: .6em; }
+.mdpro-comment { display: flex; align-items: center; gap: .4em; margin: .7em 0; padding: .28em .7em; border-radius: 8px; background: color-mix(in oklab, var(--muted) 42%, transparent); font-size: 12px; color: var(--muted-foreground); }
+.mdpro-comment.is-selected { outline: 2px solid var(--mdpro-accent, #6366f1); }
+.mdpro-comment-mark { font-family: var(--font-mono, ui-monospace, Menlo, monospace); opacity: .55; user-select: none; }
+.mdpro-comment-text { flex: 1; min-width: 0; font-family: var(--font-mono, ui-monospace, Menlo, monospace); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mdpro-comment .mdpro-chip { margin-left: auto; color: var(--muted-foreground); }
+.mdpro-comment .mdpro-chip:hover { background: var(--accent); color: var(--foreground); }
 .mdpro-raw { margin: 1em 0; border: 1px dashed var(--border); border-radius: 10px; background: color-mix(in oklab, var(--muted) 35%, transparent); font-size: 12.5px; }
 .mdpro-raw.is-selected { outline: 2px solid var(--mdpro-accent, #6366f1); }
 .mdpro-raw-head { display: flex; align-items: center; gap: .6em; padding: .35em .8em; color: var(--muted-foreground); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }

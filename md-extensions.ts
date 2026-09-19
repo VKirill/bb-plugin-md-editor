@@ -126,6 +126,130 @@ export const Details = Node.create({
   },
 });
 
+// ---------------------------------------------------------------- paired HTML comment regions (<!-- name:start --> … <!-- name:end -->)
+
+export type HtmlRegionBound = { role: "start" | "end"; key: string; kind: "suffix" | "prefix" | "hash" };
+
+/** Classify a comment body such as `bb-project-folders:agents:start` or `BEGIN rules`. */
+export function htmlRegionBound(inner: string): HtmlRegionBound | null {
+  const text = inner.trim();
+  if (!text) return null;
+  const hash = /^#(?:(end)?region)(?:\s+(.+))?$/i.exec(text);
+  if (hash) {
+    const key = (hash[2] ?? "").trim();
+    if (!hash[1] && !key) return null;
+    return { role: hash[1] ? "end" : "start", key, kind: "hash" };
+  }
+  const suffix = /^(.*?):(start|begin|end)$/i.exec(text);
+  if (suffix && suffix[1].trim()) {
+    return { role: /^(start|begin)$/i.test(suffix[2]) ? "start" : "end", key: suffix[1].trim(), kind: "suffix" };
+  }
+  const prefix = /^(start|begin|end)\s+(.+)$/i.exec(text);
+  if (prefix) {
+    return { role: /^(start|begin)$/i.test(prefix[1]) ? "start" : "end", key: prefix[2].trim(), kind: "prefix" };
+  }
+  return null;
+}
+
+function regionKeysMatch(bound: HtmlRegionBound, key: string, kind: HtmlRegionBound["kind"]): boolean {
+  if (bound.kind !== kind) return false;
+  if (bound.kind === "hash" && bound.role === "end" && !bound.key) return true;
+  return bound.key.toLowerCase() === key.toLowerCase();
+}
+
+function commentAtLine(src: string, offset: number): { raw: string; inner: string } | null {
+  if (offset > 0 && src[offset - 1] !== "\n") return null;
+  const match = /^ {0,3}<!--([\s\S]*?)-->/.exec(src.slice(offset));
+  return match ? { raw: match[0], inner: match[1].trim() } : null;
+}
+
+function nextFence(src: string, from: number): number {
+  const at = src.indexOf("```", from);
+  if (at === -1) return -1;
+  return at === 0 || src[at - 1] === "\n" ? at : nextFence(src, at + 3);
+}
+
+export function matchHtmlRegion(src: string): { raw: string; key: string; startHtml: string; endHtml: string; inner: string } | null {
+  const head = commentAtLine(src, 0);
+  if (!head) return null;
+  const open = htmlRegionBound(head.inner);
+  if (!open || open.role !== "start" || (open.kind !== "hash" && !open.key)) return null;
+  let depth = 1;
+  let i = head.raw.length;
+  while (i < src.length) {
+    const fence = nextFence(src, i);
+    const limit = fence === -1 ? src.length : fence;
+    while (i < limit) {
+      const nl = src.indexOf("\n", i);
+      const line = nl === -1 ? src.length : nl + 1;
+      const comment = commentAtLine(src, i === 0 ? 0 : i);
+      if (comment) {
+        const bound = htmlRegionBound(comment.inner);
+        if (bound && regionKeysMatch(bound, open.key, open.kind)) {
+          if (bound.role === "start") depth += 1;
+          else {
+            depth -= 1;
+            if (depth === 0) {
+              const trail = /^[ \t]*(?:\n|$)/.exec(src.slice(i + comment.raw.length))?.[0] ?? "";
+              return {
+                raw: src.slice(0, i + comment.raw.length) + trail,
+                key: open.key,
+                startHtml: head.raw.trimEnd(),
+                endHtml: comment.raw.trimEnd(),
+                inner: src.slice(head.raw.length, i).replace(/^\s*\n/, "").replace(/\n\s*$/, ""),
+              };
+            }
+          }
+        }
+        i += comment.raw.length;
+        continue;
+      }
+      i = line;
+    }
+    if (fence === -1) break;
+    const close = src.indexOf("\n```", fence + 3);
+    i = close === -1 ? src.length : close + 4;
+  }
+  return null;
+}
+
+export const HtmlRegion = Node.create({
+  name: "htmlRegion",
+  group: "block",
+  content: "block+",
+  defining: true,
+  addAttributes() {
+    return { key: { default: "" }, startHtml: { default: "" }, endHtml: { default: "" } };
+  },
+  parseHTML() {
+    return [{ tag: "div[data-html-region]", getAttrs: (el) => ({ key: (el as HTMLElement).getAttribute("data-html-region") ?? "", startHtml: (el as HTMLElement).getAttribute("data-start-html") ?? "", endHtml: (el as HTMLElement).getAttribute("data-end-html") ?? "" }) }];
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    return ["div", mergeAttributes(HTMLAttributes, { "data-html-region": String(node.attrs.key), "data-start-html": String(node.attrs.startHtml), "data-end-html": String(node.attrs.endHtml), class: "mdpro-region" }), 0];
+  },
+  markdownTokenizer: {
+    name: "htmlRegion",
+    level: "block",
+    start: (src: string) => {
+      const at = lineStart(src, / {0,3}<!--/);
+      if (at === -1) return -1;
+      return matchHtmlRegion(src.slice(at)) ? at : -1;
+    },
+    tokenize: (src: string, _tokens: Token[], lexer: any) => {
+      const found = matchHtmlRegion(src);
+      if (!found) return undefined;
+      return { type: "htmlRegion", raw: found.raw, key: found.key, startHtml: found.startHtml, endHtml: found.endHtml, tokens: found.inner.trim() ? lexer.blockTokens(found.inner) : [] };
+    },
+  },
+  parseMarkdown: (token: Token, h: any) =>
+    h.createNode("htmlRegion", { key: token.key, startHtml: token.startHtml, endHtml: token.endHtml }, blockChildren(token.tokens ?? [], h)),
+  renderMarkdown: (node: JSONContent, h: any) => {
+    const a = node.attrs ?? {};
+    const body = isEmptyParagraphOnly(node) ? "" : (h.renderChildren(node.content ?? [], "\n\n") as string);
+    return `${a.startHtml}\n${body}${body ? "\n" : ""}${a.endHtml}`;
+  },
+});
+
 // ---------------------------------------------------------------- raw HTML
 
 const BLOCK_TAGS = "address|article|aside|blockquote|center|dialog|div|dl|fieldset|figcaption|figure|footer|form|h[1-6]|header|hr|main|nav|ol|p|picture|pre|section|table|tbody|td|tfoot|th|thead|tr|ul|video|audio|iframe|img|svg|style|script|br";
@@ -153,7 +277,7 @@ export const RawHtmlBlock = Node.create({
     level: "block",
     start: (src: string) => lineStart(src, / {0,3}<(?:!--|\/?[A-Za-z])/),
     tokenize: (src: string) => {
-      if (/^ {0,3}<details\b/i.test(src)) return undefined;
+      if (/^ {0,3}<details\b/i.test(src) || matchHtmlRegion(src)) return undefined;
       const match = RAW_BLOCK.exec(src);
       if (!match) return undefined;
       return { type: "rawHtml", raw: match[0], html: match[0].replace(/\n+$/, "") };
@@ -381,7 +505,7 @@ export const RichBlockMath = BlockMath.extend({
 });
 
 /** marked gives later-registered tokenizers precedence: generic ones first, specific last. */
-export const agentMarkdownExtensions = [RawHtmlInline, RawHtmlBlock, Emoji, FootnoteRef, Subscript, Superscript, Kbd, FootnoteDef, Details, Callout];
+export const agentMarkdownExtensions = [RawHtmlInline, RawHtmlBlock, Emoji, FootnoteRef, Subscript, Superscript, Kbd, FootnoteDef, Details, Callout, HtmlRegion];
 
 // ---------------------------------------------------------------- escaping
 

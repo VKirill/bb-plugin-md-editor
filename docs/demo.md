@@ -26,6 +26,12 @@ The build finished in 41 seconds with 0 warnings.
 
 </details>
 
+<!-- demo-region:start -->
+Template comment pairs fold in the editor. The start and end markers stay in the file.
+<!-- demo-region:end -->
+
+<!-- a lone note for the agent -->
+
 ## Progress
 
 - [x] Tests pass :white_check_mark:

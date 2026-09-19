@@ -5,7 +5,7 @@ import { TableKit } from "@tiptap/extension-table";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import Highlight from "@tiptap/extension-highlight";
 import { MarkdownManager } from "@tiptap/markdown";
-import { RichBlockMath, RichInlineMath, agentMarkdownExtensions, installMinimalEscaping } from "./md-extensions.ts";
+import { RichBlockMath, RichInlineMath, agentMarkdownExtensions, htmlRegionBound, installMinimalEscaping, matchHtmlRegion } from "./md-extensions.ts";
 
 installMinimalEscaping(MarkdownManager as any);
 
@@ -33,6 +33,27 @@ test("raw HTML blocks and comments are preserved verbatim", () => {
   for (const md of ['<div align="center">\n  <img src="logo.png" width="80">\n</div>', "<!-- агент: не удалять -->", "<br/>"]) {
     assert.equal(roundTrip(md), md);
   }
+});
+
+test("paired HTML comment markers become a foldable region", () => {
+  const md = "<!-- bb-project-folders:agents:start -->\n# Section rules\n\nInside the **region**.\n<!-- bb-project-folders:agents:end -->";
+  assert.equal(htmlRegionBound("bb-project-folders:agents:start")?.key, "bb-project-folders:agents");
+  assert.equal(htmlRegionBound("BEGIN rules")?.role, "start");
+  assert.ok(matchHtmlRegion(md));
+  assert.match(types(md), /"type":"htmlRegion","attrs":\{"key":"bb-project-folders:agents"/);
+  assert.equal(roundTrip(md), md);
+  assert.equal(roundTrip("<!-- lonely start:start -->"), "<!-- lonely start:start -->");
+  const nested = "<!-- wrap:start -->\n<!-- wrap:start -->\nInner.\n<!-- wrap:end -->\n<!-- wrap:end -->";
+  assert.equal(roundTrip(nested), nested);
+});
+
+test("BEGIN/END and #region comment pairs round-trip", () => {
+  const begin = "<!-- BEGIN rules -->\nText.\n<!-- END rules -->";
+  const region = "<!-- #region copy -->\nNote.\n<!-- #endregion -->";
+  assert.match(types(begin), /"type":"htmlRegion","attrs":\{"key":"rules"/);
+  assert.match(types(region), /"type":"htmlRegion","attrs":\{"key":"copy"/);
+  assert.equal(roundTrip(begin), begin);
+  assert.equal(roundTrip(region), region);
 });
 
 test("inline html, kbd, sup, sub, highlight", () => {

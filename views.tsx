@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import type { ReactNodeViewProps } from "@tiptap/react";
-import { Callout, Details, RawHtmlBlock } from "./md-extensions";
+import { Callout, Details, HtmlRegion, RawHtmlBlock } from "./md-extensions";
 import { t } from "./i18n";
 import { cn } from "@/lib/utils";
 
@@ -83,26 +83,59 @@ function DetailsView({ node, updateAttributes, editor }: ReactNodeViewProps) {
   );
 }
 
+function commentInner(html: string): string | null {
+  const match = /^\s*<!--([\s\S]*?)-->\s*$/.exec(html);
+  return match ? match[1].replace(/^\s+|\s+$/g, "") : null;
+}
+
+function HtmlRegionView({ node }: ReactNodeViewProps) {
+  const [open, setOpen] = useState(true);
+  const key = String(node.attrs.key ?? "");
+  return (
+    <NodeViewWrapper className={cn("mdpro-region", open && "is-open")}>
+      <div className="mdpro-region-head" contentEditable={false}>
+        <button type="button" className="mdpro-details-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+          {open ? "▾" : "▸"}
+        </button>
+        <span className="mdpro-region-kind">{t("htmlRegion")}</span>
+        <code className="mdpro-region-key">{key || "…"}</code>
+        <span className="mdpro-region-hint">{open ? t("htmlPreserved") : t("htmlRegionCollapsed")}</span>
+      </div>
+      <NodeViewContent className={cn("mdpro-region-body", !open && "mdpro-hidden")} />
+    </NodeViewWrapper>
+  );
+}
+
 function RawHtmlView({ node, updateAttributes, editor, selected }: ReactNodeViewProps) {
   const html = String(node.attrs.html ?? "");
-  const comment = /^\s*<!--/.test(html);
+  const inner = commentInner(html);
+  const comment = inner !== null;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(html);
+  const toggleEdit = () => {
+    if (editing) updateAttributes({ html: draft });
+    else setDraft(html);
+    setEditing((v) => !v);
+  };
+  if (comment && !editing) {
+    return (
+      <NodeViewWrapper className={cn("mdpro-comment", selected && "is-selected")} contentEditable={false}>
+        <span className="mdpro-comment-mark" aria-hidden>{"<!--"}</span>
+        <span className="mdpro-comment-text">{inner || t("htmlComment")}</span>
+        <span className="mdpro-comment-mark" aria-hidden>{"-->"}</span>
+        {editor.isEditable ? (
+          <button type="button" className="mdpro-chip" onClick={toggleEdit}>{t("editCode")}</button>
+        ) : null}
+      </NodeViewWrapper>
+    );
+  }
   return (
     <NodeViewWrapper className={cn("mdpro-raw", comment && "mdpro-raw-comment", selected && "is-selected")} contentEditable={false}>
       <div className="mdpro-raw-head">
         <span>{comment ? t("htmlComment") : "HTML"}</span>
         <span className="mdpro-raw-note">{t("htmlPreserved")}</span>
         {editor.isEditable ? (
-          <button
-            type="button"
-            className="mdpro-chip"
-            onClick={() => {
-              if (editing) updateAttributes({ html: draft });
-              else setDraft(html);
-              setEditing((v) => !v);
-            }}
-          >
+          <button type="button" className="mdpro-chip" onClick={toggleEdit}>
             {editing ? t("apply") : t("editCode")}
           </button>
         ) : null}
@@ -118,4 +151,5 @@ function RawHtmlView({ node, updateAttributes, editor, selected }: ReactNodeView
 
 export const CalloutWithView = Callout.extend({ addNodeView: () => ReactNodeViewRenderer(CalloutView) });
 export const DetailsWithView = Details.extend({ addNodeView: () => ReactNodeViewRenderer(DetailsView) });
+export const HtmlRegionWithView = HtmlRegion.extend({ addNodeView: () => ReactNodeViewRenderer(HtmlRegionView) });
 export const RawHtmlWithView = RawHtmlBlock.extend({ addNodeView: () => ReactNodeViewRenderer(RawHtmlView) });
