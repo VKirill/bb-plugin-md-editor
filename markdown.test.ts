@@ -80,6 +80,23 @@ test("math with $ and \\( \\[ delimiters", () => {
   assert.equal(roundTrip(md), md);
 });
 
+test("unfenced box-drawing maps become asciiDiagram and round-trip", () => {
+  const md = [
+    "┌─────────┐",
+    "│ Слой 1  │",
+    "└─────────┘",
+    "     ↓",
+    "┌─────────┐",
+    "│ Слой 2  │",
+    "└─────────┘",
+  ].join("\n");
+  assert.match(types(md), /"type":"asciiDiagram"/);
+  assert.equal(roundTrip(md), md);
+  const fenced = "```\n" + md + "\n```";
+  assert.equal(roundTrip(fenced), fenced);
+  assert.doesNotMatch(types(fenced), /"type":"asciiDiagram"/);
+});
+
 test("plain markdown still round-trips", () => {
   const md = "# Заголовок\n\n- пункт\n\n- [ ] задача\n\n```diff\n- old\n+ new\n```";
   assert.equal(roundTrip(md), md);

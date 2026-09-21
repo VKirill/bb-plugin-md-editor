@@ -12,6 +12,7 @@ Edit Markdown files in [BB](https://getbb.app) as formatted documents: a style t
 - **LaTeX** with `$…$`, `\(…\)`, `$$…$$`, `\[…\]`.
 - **Code blocks** with highlighting for 37 languages and auto-detection, diff colors, JSON formatting, Copy and collapsing of long blocks.
 - **Directory trees** (`├──`, `└──`) rendered as a folder tree.
+- **ASCII box maps** (`┌─┐` / `│ │` / `└─┘` and arrows like `↓`) rendered as a stack of cards; split–join maps (`┌───┴───┐`) as a root, branches and a merge. Not treated as a directory tree.
 - **YAML front matter** as a properties card with an Edit YAML source view.
 - **Status badges** (PASS/FAIL/DONE/TODO, ✅❌⚠️) and clickable BB thread ids and task keys.
 - **Right-click menu**: Quote in chat, Comment in chat, cut/copy/copy as Markdown/paste, Format, Turn into, Insert, table/link/image actions, Copy reference (`path:lines`).
@@ -56,7 +57,7 @@ Layout:
 | `views.tsx`, `decorations.ts` | Callout/details/HTML views; status badges and entity links |
 | `context-menu.tsx`, `quote.ts` | Editor right-click menu and `path:lines` mapping |
 | `diagram-zoom.tsx` | Full-screen diagram viewer with zoom and pan |
-| `mermaid-edit.ts`, `tree.ts` | Flowchart source edits; directory tree parsing |
+| `mermaid-edit.ts`, `tree.ts`, `box-diagram.ts` | Flowchart source edits; directory trees; ASCII box maps |
 | `server.ts`, `locate.ts`, `links.ts` | Machine/path resolution, hash-guarded reads and writes, link targets |
 | `tabs.ts` | Side-panel tab context menu |
 | `skills/markdown-pro` | Agent skill |

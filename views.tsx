@@ -1,8 +1,9 @@
 // Node views for agent-style Markdown blocks: callouts, <details>, raw HTML.
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import type { ReactNodeViewProps } from "@tiptap/react";
-import { Callout, Details, HtmlRegion, RawHtmlBlock } from "./md-extensions";
+import { AsciiDiagram, Callout, Details, HtmlRegion, RawHtmlBlock } from "./md-extensions";
+import { parseBoxDiagram, parseForkDiagram, type ForkNode } from "./box-diagram";
 import { t } from "./i18n";
 import { cn } from "@/lib/utils";
 
@@ -149,7 +150,71 @@ function RawHtmlView({ node, updateAttributes, editor, selected }: ReactNodeView
   );
 }
 
+function AsciiCard({ node }: { node: ForkNode }) {
+  return (
+    <div className="mdpro-ascii-box">
+      {node.title ? <div className="mdpro-ascii-title">{node.title}</div> : null}
+      {node.lines.map((line, lineIndex) => (
+        <div key={lineIndex} className="mdpro-ascii-line">{line}</div>
+      ))}
+    </div>
+  );
+}
+
+export function BoxDiagramView({ code }: { code: string }) {
+  const fork = useMemo(() => parseForkDiagram(code), [code]);
+  const parts = useMemo(() => (fork ? null : parseBoxDiagram(code)), [code, fork]);
+  if (fork) {
+    return (
+      <div className="mdpro-ascii mdpro-ascii-fork" role="img" aria-label={t("asciiDiagram")}>
+        {fork.root.title ? <AsciiCard node={fork.root} /> : null}
+        <div className="mdpro-ascii-arrow" aria-hidden>↓</div>
+        <div className="mdpro-ascii-rail mdpro-ascii-rail-split" aria-hidden />
+        <div className="mdpro-ascii-branches">
+          {fork.branches.map((branch, index) => (
+            <div key={index} className="mdpro-ascii-branch">
+              <div className="mdpro-ascii-arrow" aria-hidden>↓</div>
+              <AsciiCard node={branch} />
+              {fork.merge ? <div className="mdpro-ascii-arrow" aria-hidden>↓</div> : null}
+            </div>
+          ))}
+        </div>
+        {fork.merge ? (
+          <>
+            <div className="mdpro-ascii-rail mdpro-ascii-rail-join" aria-hidden />
+            <div className="mdpro-ascii-arrow" aria-hidden>↓</div>
+            <AsciiCard node={fork.merge} />
+          </>
+        ) : null}
+      </div>
+    );
+  }
+  if (!parts) return <pre className="mdpro-ascii-fallback">{code}</pre>;
+  return (
+    <div className="mdpro-ascii" role="img" aria-label={t("asciiDiagram")}>
+      {parts.map((part, index) => {
+        if (part.kind === "arrow") {
+          return <div key={index} className="mdpro-ascii-arrow" aria-hidden>{part.symbol}</div>;
+        }
+        if (part.kind === "raw") {
+          return <pre key={index} className="mdpro-ascii-raw">{part.text}</pre>;
+        }
+        return <AsciiCard key={index} node={part} />;
+      })}
+    </div>
+  );
+}
+
+function AsciiDiagramView({ node }: ReactNodeViewProps) {
+  return (
+    <NodeViewWrapper className="mdpro-ascii-node">
+      <BoxDiagramView code={String(node.attrs.text ?? "")} />
+    </NodeViewWrapper>
+  );
+}
+
 export const CalloutWithView = Callout.extend({ addNodeView: () => ReactNodeViewRenderer(CalloutView) });
 export const DetailsWithView = Details.extend({ addNodeView: () => ReactNodeViewRenderer(DetailsView) });
 export const HtmlRegionWithView = HtmlRegion.extend({ addNodeView: () => ReactNodeViewRenderer(HtmlRegionView) });
 export const RawHtmlWithView = RawHtmlBlock.extend({ addNodeView: () => ReactNodeViewRenderer(RawHtmlView) });
+export const AsciiDiagramWithView = AsciiDiagram.extend({ addNodeView: () => ReactNodeViewRenderer(AsciiDiagramView) });

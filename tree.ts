@@ -15,6 +15,7 @@ const COMMENT = /\s+(?:#|\/\/|<--|←|—|--)\s*(.*)$/;
 export function looksLikeTree(code: string): boolean {
   const lines = code.split("\n").filter((line) => line.trim() !== "");
   if (lines.length < 2) return false;
+  if (lines.some((line) => /^[ \t]*[┌╔┏].*[┐╗┓][ \t]*$/.test(line) && /[─━═]/.test(line))) return false;
   const branchy = lines.filter((line) => /[├└│┣┗]|(?:^|\s)(?:\|--|\+--|`--)/.test(line)).length;
   return branchy >= Math.max(1, Math.ceil((lines.length - 1) * 0.5));
 }

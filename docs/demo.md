@@ -80,6 +80,35 @@ bb-plugin-md-editor/
 └── README.md        // docs
 ```
 
+## Solution map
+
+```
+┌──────────────────────────┐
+│ H1: Release checklist    │
+│ Who this is for          │
+└──────────────────────────┘
+              ↓
+┌──────────────────────────┐
+│ Layer 2: Checks          │
+│ - Tests and typecheck    │
+└──────────────────────────┘
+```
+
+## Query matrix
+
+```
+CANONICAL
+"one page"
+        ↓
+    ┌───┴───────────┐
+    ↓               ↓
+Variant A       Variant B
+(dative)        (genitive)
+    └───┬───────────┘
+        ↓
+    /page
+```
+
 ## Release flow
 
 ```mermaid

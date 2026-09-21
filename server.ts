@@ -71,7 +71,7 @@ export default function plugin(bb: BbPluginApi) {
     tools: [],
     skills: ["markdown-pro"],
     instructions:
-      "When you create or substantially rewrite a Markdown (.md) file for the user, follow the markdown-pro skill: callouts, collapsible details, Mermaid, LaTeX, task lists, status tables, directory trees, YAML front matter, and paired HTML template comments (`<!-- name:start -->` … `<!-- name:end -->`) render as a formatted, editable document in BB's Markdown PRO editor.",
+      "When you create or substantially rewrite a Markdown (.md) file for the user, follow the markdown-pro skill: callouts, collapsible details, Mermaid, LaTeX, task lists, status tables, directory trees, ASCII box maps (`┌─┐` / `↓`), YAML front matter, and paired HTML template comments (`<!-- name:start -->` … `<!-- name:end -->`) render as a formatted, editable document in BB's Markdown PRO editor.",
   }));
 
   bb.rpc.register(rpcContract, {

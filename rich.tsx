@@ -15,7 +15,7 @@ import Highlight from "@tiptap/extension-highlight";
 import { Markdown, MarkdownManager } from "@tiptap/markdown";
 import { toast } from "sonner";
 import { Emoji, FootnoteDef, FootnoteRef, Kbd, RawHtmlInline, RichBlockMath, RichInlineMath, Subscript, Superscript, installMinimalEscaping } from "./md-extensions";
-import { CALLOUT_MENU, CalloutWithView, DetailsWithView, HtmlRegionWithView, RawHtmlWithView } from "./views";
+import { CALLOUT_MENU, AsciiDiagramWithView, BoxDiagramView, CalloutWithView, DetailsWithView, HtmlRegionWithView, RawHtmlWithView } from "./views";
 import { AgentDecorations } from "./decorations";
 import { EditorContextMenu, currentFragmentMarkdown, type ContextItem, type ContextTarget } from "./context-menu";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -39,6 +39,7 @@ import { File01Icon, Folder01Icon, ZoomInIcon } from "@hugeicons/core-free-icons
 import { DiagramZoom } from "./diagram-zoom";
 import { cn } from "@/lib/utils";
 import { SHAPES, addAfter, addNode, deleteNode, isFlowchart, labelOf, nodeIdFromSvg, renameNode, reshapeNode, type Shape } from "./mermaid-edit";
+import { looksLikeBoxDiagram, looksLikeForkDiagram } from "./box-diagram";
 import { looksLikeTree, parseTree } from "./tree";
 import { t, type I18nKey } from "./i18n";
 
@@ -213,8 +214,9 @@ function CodeBlockView({ node, updateAttributes, editor, getPos }: ReactNodeView
   const language = (node.attrs.language as string | null) ?? "";
   const lower = language.toLowerCase();
   const mermaid = lower === "mermaid";
-  const tree = lower === "tree" || (language === "" && looksLikeTree(node.textContent));
-  const visual = mermaid || tree;
+  const box = ["ascii", "box", "diagram"].includes(lower) || looksLikeBoxDiagram(node.textContent) || looksLikeForkDiagram(node.textContent);
+  const tree = !box && (lower === "tree" || (language === "" && looksLikeTree(node.textContent)));
+  const visual = mermaid || tree || box;
   const [editing, setEditing] = useState(!visual || node.textContent.trim() === "");
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -261,7 +263,7 @@ function CodeBlockView({ node, updateAttributes, editor, getPos }: ReactNodeView
         <input
           className="mdpro-code-lang"
           value={language}
-          placeholder={tree ? t("treeAuto") : detected ? `${detected} · ${t("auto")}` : t("language")}
+          placeholder={box ? t("asciiAuto") : tree ? t("treeAuto") : detected ? `${detected} · ${t("auto")}` : t("language")}
           aria-label={t("codeLanguage")}
           disabled={!editor.isEditable}
           onChange={(event) => updateAttributes({ language: event.target.value || null })}
@@ -298,6 +300,11 @@ function CodeBlockView({ node, updateAttributes, editor, getPos }: ReactNodeView
       {tree ? (
         <div contentEditable={false}>
           <TreeView code={node.textContent} />
+        </div>
+      ) : null}
+      {box ? (
+        <div contentEditable={false}>
+          <BoxDiagramView code={node.textContent} />
         </div>
       ) : null}
       <pre spellCheck={false} className={cn(visual && !editing && "mdpro-hidden", collapsible && !expanded && "mdpro-code-collapsed")}>
@@ -495,6 +502,7 @@ export function RichMarkdownEditor(props: RichEditorProps) {
       DetailsWithView,
       CalloutWithView,
       HtmlRegionWithView,
+      AsciiDiagramWithView,
       AgentDecorations,
       Placeholder.configure({ placeholder: t("placeholder") }),
       Markdown.configure({ markedOptions: { gfm: true } }),
@@ -965,6 +973,20 @@ export const RICH_CSS = `
 .mdpro-tree-file { color: var(--muted-foreground); flex-shrink: 0; }
 .mdpro-tree-name { white-space: nowrap; }
 .mdpro-tree-comment { margin-left: auto; padding-left: 16px; color: var(--muted-foreground); font-family: var(--font-sans, inherit); font-size: 12px; text-align: right; }
+.mdpro-ascii-node { margin: .6em 0; }
+.mdpro-ascii { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: .8em 1em 1.2em; }
+.mdpro-ascii-box { width: min(100%, 38rem); border: 1px solid var(--border); border-radius: 12px; background: color-mix(in oklab, var(--muted) 45%, transparent); padding: .7em 1em .8em; }
+.mdpro-ascii-title { font-weight: 600; font-size: 14px; line-height: 1.4; }
+.mdpro-ascii-line { margin-top: .28em; font-size: 13px; line-height: 1.45; color: var(--muted-foreground); }
+.mdpro-ascii-arrow { color: var(--muted-foreground); font-size: 18px; line-height: 1.3; user-select: none; }
+.mdpro-ascii-raw, .mdpro-ascii-fallback { margin: 0; width: 100%; overflow-x: auto; font-family: var(--font-mono, ui-monospace, "SF Mono", Menlo, monospace); font-size: 13px; white-space: pre; }
+.mdpro-ascii-fork { gap: 0; }
+.mdpro-ascii-branches { display: flex; justify-content: center; align-items: stretch; gap: 16px; width: min(100%, 44rem); }
+.mdpro-ascii-branch { display: flex; flex-direction: column; align-items: center; flex: 1 1 0; min-width: 0; }
+.mdpro-ascii-branch .mdpro-ascii-box { width: 100%; }
+.mdpro-ascii-rail { width: min(72%, 28rem); height: 14px; border: 1.5px solid color-mix(in oklab, var(--border) 80%, var(--muted-foreground)); }
+.mdpro-ascii-rail-split { border-bottom: none; border-radius: 12px 12px 0 0; margin: 2px 0 0; }
+.mdpro-ascii-rail-join { border-top: none; border-radius: 0 0 12px 12px; margin: 0 0 2px; }
 .mdpro-diagram { display: flex; justify-content: center; padding: 1em 1.2em 1.4em; overflow-x: auto; }
 .mdpro-diagram svg { max-width: 100%; height: auto; }
 .mdpro-diagram-error, .mdpro-diagram-loading { padding: .75em 1.2em; font-size: 12px; color: var(--muted-foreground); }

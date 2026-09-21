@@ -5,6 +5,7 @@ import { Mark, Node, mergeAttributes } from "@tiptap/core";
 import type { JSONContent, MarkdownToken } from "@tiptap/core";
 import { BlockMath, InlineMath } from "@tiptap/extension-mathematics";
 import { gemoji } from "gemoji";
+import { matchAsciiDiagram } from "./box-diagram.ts";
 
 type Token = MarkdownToken & Record<string, any>;
 
@@ -504,8 +505,42 @@ export const RichBlockMath = BlockMath.extend({
   },
 });
 
+// ---------------------------------------------------------------- unfenced ASCII box maps
+
+export const AsciiDiagram = Node.create({
+  name: "asciiDiagram",
+  group: "block",
+  atom: true,
+  selectable: true,
+  addAttributes() {
+    return { text: { default: "" } };
+  },
+  parseHTML() {
+    return [{ tag: "div[data-ascii-diagram]", getAttrs: (el) => ({ text: (el as HTMLElement).getAttribute("data-ascii-diagram") ?? "" }) }];
+  },
+  renderHTML({ node }) {
+    return ["div", { "data-ascii-diagram": node.attrs.text, class: "mdpro-ascii-wrap" }, node.attrs.text];
+  },
+  markdownTokenizer: {
+    name: "asciiDiagram",
+    level: "block",
+    start: (src: string) => {
+      const at = lineStart(src, /[ \t]*[┌╔┏]/);
+      if (at === -1) return -1;
+      return matchAsciiDiagram(src.slice(at)) ? at : -1;
+    },
+    tokenize: (src: string) => {
+      const found = matchAsciiDiagram(src);
+      if (!found) return undefined;
+      return { type: "asciiDiagram", raw: found.raw, text: found.text };
+    },
+  },
+  parseMarkdown: (token: Token, h: any) => h.createNode("asciiDiagram", { text: token.text }),
+  renderMarkdown: (node: JSONContent) => String(node.attrs?.text ?? ""),
+});
+
 /** marked gives later-registered tokenizers precedence: generic ones first, specific last. */
-export const agentMarkdownExtensions = [RawHtmlInline, RawHtmlBlock, Emoji, FootnoteRef, Subscript, Superscript, Kbd, FootnoteDef, Details, Callout, HtmlRegion];
+export const agentMarkdownExtensions = [RawHtmlInline, RawHtmlBlock, Emoji, FootnoteRef, Subscript, Superscript, Kbd, FootnoteDef, Details, Callout, HtmlRegion, AsciiDiagram];
 
 // ---------------------------------------------------------------- escaping
 

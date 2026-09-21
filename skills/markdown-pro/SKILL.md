@@ -1,6 +1,6 @@
 ---
 name: markdown-pro
-description: Write Markdown files (.md reports, plans, checklists, docs) that render well in the Markdown PRO editor — callouts, collapsible details, Mermaid, LaTeX, directory trees, task lists, status tables, footnotes, YAML properties, and foldable HTML template regions (`<!-- name:start -->` / `<!-- name:end -->`). Use when creating or restructuring a Markdown document for the user to read or edit in BB.
+description: Write Markdown files (.md reports, plans, checklists, docs) that render well in the Markdown PRO editor — callouts, collapsible details, Mermaid, LaTeX, directory trees, ASCII box maps, task lists, status tables, footnotes, YAML properties, and foldable HTML template regions (`<!-- name:start -->` / `<!-- name:end -->`). Use when creating or restructuring a Markdown document for the user to read or edit in BB.
 ---
 
 # Markdown PRO
@@ -41,6 +41,7 @@ tags: [release, backend]
 
 - Fence code with a language (` ```ts `, ` ```php `, ` ```diff `). `diff` highlights added/removed lines; JSON gets a Format button.
 - Directory trees: a fenced block (language `tree` or none) using `├──`, `└──`, `│`; add comments after `#` or `//`.
+- ASCII box maps (solution maps, layered schemes): draw them with `┌─┐` / `│ │` / `└─┘` and arrows such as `↓`. Split–join maps (`┌───┴───┐` … `└───┬───┘`) render as a root, side-by-side branches and a merge. Leave them unfenced or fence with no language / `ascii`. Do not convert these into Mermaid unless the user asks.
 - Diagrams: ` ```mermaid ` (flowchart, sequenceDiagram, gantt, classDiagram, stateDiagram-v2, erDiagram, mindmap, pie, timeline). Flowcharts are editable by right-click, so use short node ids (`A`, `B1`) and put labels in brackets: `A[Start] --> B{Check?}`.
 - Math: inline `$x^2$` or `\(x^2\)`, block `$$ … $$` or `\[ … \]` on their own lines. A lone `$5` is not math.
 

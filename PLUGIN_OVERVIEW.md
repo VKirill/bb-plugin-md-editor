@@ -8,6 +8,7 @@ Markdown PRO opens every `.md`, `.markdown` and `.mdx` file in BB as a formatted
 - **LaTeX** — `$…$`, `\(…\)`, `$$…$$` and `\[…\]`; click a formula to edit it. Prices like "$5 and $10" stay plain text.
 - **Code** — syntax highlighting for 37 languages with automatic detection, diff line colors, a Format button for JSON, Copy on every block, and long blocks collapsed.
 - **Directory trees** written with `├──` and `└──` render as a folder tree with comments.
+- **ASCII box maps** (`┌─┐` … `└─┘`, arrows like `↓`) render as a stack of cards, whether fenced or written as a bare block. They are not shown as a directory tree.
 - **YAML front matter** collapses to one Properties line and expands into a card with title, status badge, owner, dates and tags; Edit YAML opens the source.
 - **Status badges and links** — PASS, FAIL, DONE, TODO, ✅ and ❌ become colored badges. BB thread ids open the thread and task keys like `ABC-12` open the task.
 

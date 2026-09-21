@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { addAfter, addNode, deleteNode, findDeclaration, isFlowchart, labelOf, renameNode, reshapeNode } from "./mermaid-edit.ts";
+import { looksLikeBoxDiagram, looksLikeForkDiagram, matchAsciiDiagram, parseBoxDiagram, parseForkDiagram } from "./box-diagram.ts";
 import { looksLikeTree, parseTree } from "./tree.ts";
 
 const chart = "flowchart LR\n  A[Чат] --> B[Markdown PRO]\n  B --> C[Файл на Mac mini]\n";
@@ -59,4 +60,69 @@ test("tree detection and parsing", () => {
     { depth: 3, name: "util.ts", comment: "утилиты", folder: false },
     { depth: 1, name: "README.md", comment: null, folder: false },
   ]);
+});
+
+const boxMap = [
+  "┌─────────────────────────────────────────────────────────────┐",
+  "│ H1: Молитва Николаю Чудотворцу о здравии                   │",
+  "│ Введение: что это, для кого                                │",
+  "└─────────────────────────────────────────────────────────────┘",
+  "                            ↓",
+  "┌─────────────────────────────────────────────────────────────┐",
+  "│ СЛОЙ 2: Святой Николай                                      │",
+  "│ - Кто такой, почему Чудотворец                              │",
+  "└─────────────────────────────────────────────────────────────┘",
+].join("\n");
+
+test("box maps are not directory trees", () => {
+  assert.ok(looksLikeBoxDiagram(boxMap));
+  assert.ok(!looksLikeTree(boxMap));
+  assert.ok(!looksLikeBoxDiagram("project/\n├── src/\n└── README.md"));
+});
+
+test("box map parse extracts titles, bullets and arrows", () => {
+  assert.deepEqual(parseBoxDiagram(boxMap), [
+    { kind: "box", title: "H1: Молитва Николаю Чудотворцу о здравии", lines: ["Введение: что это, для кого"] },
+    { kind: "arrow", symbol: "↓" },
+    { kind: "box", title: "СЛОЙ 2: Святой Николай", lines: ["- Кто такой, почему Чудотворец"] },
+  ]);
+});
+
+test("split-join query matrix becomes a fork diagram", () => {
+  const fork = [
+    "КАНОНИЧНЫЙ ЗАПРОС",
+    '"Молитва Николаю Чудотворцу о здравии"',
+    "        ↓",
+    "    ┌───┴───────────────────────┐",
+    "    ↓                           ↓",
+    "Вариант 1                   Вариант 2",
+    '"молитва николаю          "молитва николая',
+    'чудотворцу здравии"       чудотворца о здравии"',
+    "(дательный)               (генитив + предлог)",
+    "    ↓                           ↓",
+    "    └───┬───────────────────────┘",
+    "        ↓",
+    "    ЕДИНАЯ СТРАНИЦА",
+    "    /molitva",
+  ].join("\n");
+  assert.ok(looksLikeForkDiagram(fork));
+  assert.ok(!looksLikeBoxDiagram(fork));
+  assert.ok(!looksLikeTree(fork));
+  assert.deepEqual(parseForkDiagram(fork), {
+    root: { title: "КАНОНИЧНЫЙ ЗАПРОС", lines: ['"Молитва Николаю Чудотворцу о здравии"'] },
+    branches: [
+      { title: "Вариант 1", lines: ['"молитва николаю', 'чудотворцу здравии"', "(дательный)"] },
+      { title: "Вариант 2", lines: ['"молитва николая', 'чудотворца о здравии"', "(генитив + предлог)"] },
+    ],
+    merge: { title: "ЕДИНАЯ СТРАНИЦА", lines: ["/molitva"] },
+  });
+});
+
+test("unfenced box map matcher stops before the next heading", () => {
+  const src = `${boxMap}\n\n## Дальше\n`;
+  const found = matchAsciiDiagram(src);
+  assert.ok(found);
+  assert.equal(found.text, boxMap);
+  assert.ok(found.raw.endsWith("\n"));
+  assert.ok(!found.raw.includes("Дальше"));
 });
