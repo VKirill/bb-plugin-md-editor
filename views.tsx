@@ -1,5 +1,5 @@
 // Node views for agent-style Markdown blocks: callouts, <details>, raw HTML.
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import type { ReactNodeViewProps } from "@tiptap/react";
 import { AsciiDiagram, Callout, Details, HtmlRegion, RawHtmlBlock } from "./md-extensions";
@@ -62,22 +62,56 @@ function CalloutView({ node, updateAttributes, editor }: ReactNodeViewProps) {
   );
 }
 
+const SUMMARY_INLINE = /<(b|strong|i|em|code)>([\s\S]*?)<\/\1>|\*\*([^*]+)\*\*|`([^`]+)`/gi;
+
+/** Renders the inline formatting agents put in <summary> (<b>, <em>, **, `) without injecting HTML. */
+function renderSummary(text: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  let last = 0;
+  for (const m of text.matchAll(SUMMARY_INLINE)) {
+    if (m.index! > last) out.push(text.slice(last, m.index));
+    const tag = m[1]?.toLowerCase();
+    const inner = m[2] ?? m[3] ?? m[4];
+    const key = m.index;
+    if (tag === "i" || tag === "em") out.push(<em key={key}>{renderSummary(inner)}</em>);
+    else if (tag === "code" || m[4] !== undefined) out.push(<code key={key}>{inner}</code>);
+    else out.push(<strong key={key}>{renderSummary(inner)}</strong>);
+    last = m.index! + m[0].length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
 function DetailsView({ node, updateAttributes, editor }: ReactNodeViewProps) {
   const [open, setOpen] = useState(Boolean(node.attrs.open));
+  const [editing, setEditing] = useState(false);
+  const summary = String(node.attrs.summary ?? "");
   return (
     <NodeViewWrapper className={cn("mdpro-details", open && "is-open")}>
       <div className="mdpro-details-head" contentEditable={false}>
         <button type="button" className="mdpro-details-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
           {open ? "▾" : "▸"}
         </button>
-        <input
-          className="mdpro-details-summary"
-          value={String(node.attrs.summary ?? "")}
-          placeholder={t("detailsSummary")}
-          aria-label={t("detailsSummary")}
-          disabled={!editor.isEditable}
-          onChange={(event) => updateAttributes({ summary: event.target.value })}
-        />
+        {editing || (!summary && editor.isEditable) ? (
+          <input
+            className="mdpro-details-summary"
+            value={summary}
+            placeholder={t("detailsSummary")}
+            aria-label={t("detailsSummary")}
+            autoFocus={editing}
+            disabled={!editor.isEditable}
+            onBlur={() => setEditing(false)}
+            onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
+            onChange={(event) => updateAttributes({ summary: event.target.value })}
+          />
+        ) : (
+          <span
+            className="mdpro-details-summary mdpro-details-summary-view"
+            onClick={() => (editor.isEditable ? setEditing(true) : setOpen((v) => !v))}
+          >
+            {renderSummary(summary)}
+          </span>
+        )}
       </div>
       <NodeViewContent className={cn("mdpro-details-body", !open && "mdpro-hidden")} />
     </NodeViewWrapper>

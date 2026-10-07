@@ -1014,6 +1014,9 @@ export const RICH_CSS = `
 .mdpro-details.is-open { padding-bottom: .9em; }
 .mdpro-details-head { display: flex; align-items: center; gap: .4em; font-weight: 600; }
 .mdpro-details-summary { flex: 1; background: transparent; border: 0; outline: none; font: inherit; color: var(--foreground); }
+.mdpro-details-summary-view { cursor: text; white-space: pre-wrap; }
+.mdpro-details-summary-view:has(strong) { font-weight: 400; }
+.mdpro-details-summary-view strong { font-weight: 650; }
 .mdpro-details-body { margin-top: .5em; padding-left: 1.7em; }
 .mdpro-region { margin: 1.1em 0; border: 1px dashed color-mix(in oklab, var(--mdpro-accent, #6366f1) 40%, var(--border)); border-radius: 12px; background: color-mix(in oklab, var(--mdpro-accent, #6366f1) 5%, transparent); }
 .mdpro-region-head { display: flex; align-items: center; gap: .45em; padding: .4em .75em; color: var(--muted-foreground); font-size: 12px; }
