@@ -1,12 +1,31 @@
 ---
 title: Release checklist
-status: in progress
-owner: release-agent
-updated: 2026-09-16
-tags: [release, markdown, demo]
+type: overview
+created: 2026-09-16
+updated: 2026-10-11
+status: active
+confidence: medium
+tags: [demo, markdown, release-checklist]
+sources:
+  - rich.tsx
+  - views.tsx
+  - md-extensions.ts
+  - box-diagram.ts
+  - tree.ts
+  - package.json
 ---
 
 # Release checklist
+
+TL;DR: This sample shows Markdown source patterns rendered by the rich editor; checklist names, statuses, thread IDs, and task keys below are sample content (`rich.tsx:464-508`, `views.tsx:198-249`).
+
+## What it is
+
+The file demonstrates callouts, details, math, code blocks, directory trees, Mermaid, and ASCII box maps supported by Markdown PRO (`md-extensions.ts:27-65`, `md-extensions.ts:459-550`, `rich.tsx:213-228`). The release notes, CI statuses, and identifiers are fixture text, not a report about this repository.
+
+## Stack
+
+The editor uses Tiptap `3.31.3`, Mermaid `12.0.0`, and KaTeX `0.18.7` (`package.json:25-46`).
 
 This document shows what **Markdown PRO** renders from plain Markdown that agents write: ==highlights==, `inline code`, <kbd>Cmd</kbd>+<kbd>S</kbd>, H<sub>2</sub>O, x<sup>2</sup> and file names like `release_notes.md` stay intact on save.
 
@@ -124,3 +143,8 @@ flowchart LR
 Tracked in thread thr_demo0thread and task REL-42. See the footnote[^1].
 
 [^1]: Footnotes render at the bottom and link back from the text.
+
+## Where to look next
+
+- [Markdown editing](editor.md) — editor modes and save lifecycle.
+- [Markdown rendering](rendering.md) — supported custom syntax and diagram parsing.
