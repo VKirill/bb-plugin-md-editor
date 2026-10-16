@@ -87,7 +87,7 @@
     "file-opener"
   ],
   "scripts": {
-    "test": "node --experimental-strip-types --test links.test.ts locate.test.ts frontmatter.test.ts diagram.test.ts markdown.test.ts quote.test.ts font-size.test.ts",
+    "test": "node --experimental-strip-types --test links.test.ts locate.test.ts frontmatter.test.ts diagram.test.ts markdown.test.ts quote.test.ts tabs.test.ts font-size.test.ts",
     "typecheck": "tsc --noEmit",
     "build": "bb plugin build ."
   },

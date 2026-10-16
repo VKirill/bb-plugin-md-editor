@@ -4,6 +4,7 @@
 // degrades to doing nothing if the strip markup changes.
 import type { PluginContentScriptContext } from "@get-bb/plugin-sdk/app";
 import { t } from "./i18n";
+import { tabMenuPosition } from "./tabs-position";
 
 const STRIP = '[data-testid="secondary-panel-tab-strip"]';
 const CONTENT = "[data-secondary-panel-tab-content]";
@@ -79,7 +80,27 @@ export function mountTabMenu(context: PluginContentScriptContext) {
     menu = null;
   };
 
-  const show = (strip: Element, item: HTMLElement) => {
+  const popupNativeMenu = async (
+    items: Array<{ id: string; label: string; enabled?: boolean } | { sep: true }>,
+    x: number,
+    y: number,
+  ): Promise<string | null> => {
+    const desktop = (
+      window as unknown as {
+        bbDesktop?: {
+          popupAppMenu?: (request: {
+            items: Array<{ id: string; label: string; enabled?: boolean } | { sep: true }>;
+            x: number;
+            y: number;
+          }) => Promise<string | null>;
+        };
+      }
+    ).bbDesktop;
+    if (typeof desktop?.popupAppMenu !== "function") return null;
+    return desktop.popupAppMenu({ items, x, y });
+  };
+
+  const show = (strip: Element, item: HTMLElement, clientX: number, clientY: number) => {
     hide();
     const items = tabItems(strip);
     const index = items.indexOf(item);
@@ -91,14 +112,15 @@ export function mountTabMenu(context: PluginContentScriptContext) {
     const right = closable(items.slice(index + 1));
     const all = closable(items);
 
-    const entries: ({ text: string; disabled?: boolean; run: () => void } | "sep")[] = [
-      { text: t("tabClose"), disabled: pinned || !item.querySelector(CLOSE), run: () => void closeItems(strip, [label]) },
-      { text: t("tabCloseOthers"), disabled: others.length === 0, run: () => void closeItems(strip, others) },
-      { text: t("tabCloseLeft"), disabled: left.length === 0, run: () => void closeItems(strip, left) },
-      { text: t("tabCloseRight"), disabled: right.length === 0, run: () => void closeItems(strip, right) },
-      { text: t("tabCloseAll"), disabled: all.length === 0, run: () => void closeItems(strip, all) },
+    const entries: ({ id: string; text: string; disabled?: boolean; run: () => void } | "sep")[] = [
+      { id: "close", text: t("tabClose"), disabled: pinned || !item.querySelector(CLOSE), run: () => void closeItems(strip, [label]) },
+      { id: "closeOthers", text: t("tabCloseOthers"), disabled: others.length === 0, run: () => void closeItems(strip, others) },
+      { id: "closeLeft", text: t("tabCloseLeft"), disabled: left.length === 0, run: () => void closeItems(strip, left) },
+      { id: "closeRight", text: t("tabCloseRight"), disabled: right.length === 0, run: () => void closeItems(strip, right) },
+      { id: "closeAll", text: t("tabCloseAll"), disabled: all.length === 0, run: () => void closeItems(strip, all) },
       "sep",
       {
+        id: "pin",
         text: pinned ? t("tabUnpin") : t("tabPin"),
         disabled: !item.querySelector(CLOSE) && !pinned,
         run: () => {
@@ -114,10 +136,28 @@ export function mountTabMenu(context: PluginContentScriptContext) {
       },
     ];
 
+    if (typeof (window as unknown as { bbDesktop?: { popupAppMenu?: unknown } }).bbDesktop?.popupAppMenu === "function") {
+      void popupNativeMenu(
+        entries.map((entry) =>
+          entry === "sep"
+            ? { sep: true as const }
+            : { id: entry.id, label: entry.text, enabled: !entry.disabled },
+        ),
+        clientX,
+        clientY,
+      ).then((id) => {
+        if (!id) return;
+        const entry = entries.find((item) => item !== "sep" && item.id === id);
+        if (entry && entry !== "sep") entry.run();
+      });
+      return;
+    }
+
     menu = document.createElement("div");
     menu.className = "mdpro-tabmenu";
     menu.setAttribute("data-bb-ru-skip", "");
     menu.setAttribute("role", "menu");
+    menu.setAttribute("data-state", "open");
     for (const entry of entries) {
       if (entry === "sep") {
         menu.appendChild(document.createElement("hr"));
@@ -136,29 +176,13 @@ export function mountTabMenu(context: PluginContentScriptContext) {
     }
     document.body.appendChild(menu);
     const rect = menu.getBoundingClientRect();
-    // Open under the clicked tab. A visible browser tab is a native view painted
-    // above the page and would cover the menu, so then move it left of the panel.
-    const stripRect = strip.getBoundingClientRect();
     const tabRect = item.getBoundingClientRect();
-    // The native view fills the browser tab's container, which starts left of
-    // the tab strip, so measure the widest ancestor of the visible address bar.
-    let browserLeft: number | null = null;
-    for (const bar of Array.from(document.querySelectorAll('[data-testid="browser-tab-nav-bar"]'))) {
-      const r = bar.getBoundingClientRect();
-      if (r.width === 0 || r.left >= stripRect.right || r.right <= stripRect.left) continue;
-      let left = Math.min(r.left, stripRect.left);
-      for (let el = bar.parentElement, depth = 0; el && depth < 6; el = el.parentElement, depth += 1) {
-        const a = el.getBoundingClientRect();
-        // Stop at containers that reach into the chat column.
-        if (a.width >= window.innerWidth * 0.95 || a.left < stripRect.left - 160) break;
-        left = Math.min(left, a.left);
-      }
-      browserLeft = browserLeft === null ? left : Math.min(browserLeft, left);
-    }
-    let x = Math.min(tabRect.left, window.innerWidth - rect.width - 8);
-    if (browserLeft !== null && browserLeft - rect.width - 8 >= 8) x = browserLeft - rect.width - 8;
-    menu.style.left = `${Math.max(8, x)}px`;
-    menu.style.top = `${Math.min(tabRect.bottom + 4, window.innerHeight - rect.height - 8)}px`;
+    const { x, y } = tabMenuPosition(tabRect, rect, {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
   };
 
   const onContextMenu = (event: MouseEvent) => {
@@ -170,7 +194,7 @@ export function mountTabMenu(context: PluginContentScriptContext) {
     if (!item) return;
     event.preventDefault();
     event.stopPropagation();
-    show(strip, item);
+    show(strip, item, event.clientX, event.clientY);
   };
   const onPointerDown = (event: Event) => {
     if (menu && !menu.contains(event.target as Node)) hide();
