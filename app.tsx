@@ -3,7 +3,7 @@
 // properties panel. BB routes .md files here from chat links, the file picker,
 // Tasks/Docs panels and `bb thread open`.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { definePluginApp, useBbNavigate, useComposer, useRpc, type PluginFileOpenerProps } from "@get-bb/plugin-sdk/app";
 import type { Editor } from "@tiptap/react";
 import { parseDocument } from "yaml";
@@ -15,6 +15,8 @@ import { dirnamePosix, normalizePosix, resolveLink, type DocumentContext } from 
 import { joinFrontMatter, splitFrontMatter } from "./frontmatter";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { Input } from "@/components/ui/input";
+import { FONT_SIZE_KEY, parseFontSize } from "./font-size";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { detectLocale, t } from "./i18n";
@@ -221,6 +223,25 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
   const [missing, setMissing] = useState(false);
   const [autosave, setAutosave] = useState(() => globalThis.localStorage?.getItem(AUTOSAVE_KEY) !== "off");
   const [prompt, setPrompt] = useState<Prompt>(null);
+  const [fontSize, setFontSize] = useState(() => parseFontSize(globalThis.localStorage?.getItem(FONT_SIZE_KEY)));
+  const [fontSizeOpen, setFontSizeOpen] = useState(false);
+  const [fontSizeDraft, setFontSizeDraft] = useState("");
+  useEffect(() => {
+    const sync = () => setFontSize(parseFontSize(globalThis.localStorage?.getItem(FONT_SIZE_KEY)));
+    window.addEventListener("storage", sync);
+    window.addEventListener(FONT_SIZE_KEY, sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener(FONT_SIZE_KEY, sync);
+    };
+  }, []);
+  const changeFontSize = (value: string) => {
+    const next = parseFontSize(value);
+    if (next === null) globalThis.localStorage?.removeItem(FONT_SIZE_KEY);
+    else globalThis.localStorage?.setItem(FONT_SIZE_KEY, String(next));
+    setFontSize(next);
+    window.dispatchEvent(new Event(FONT_SIZE_KEY));
+  };
 
   // Document parts. `baseline*` is what the editor produced for the file on
   // disk, so merely opening a file never marks it dirty or rewrites it.
@@ -470,7 +491,7 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
   const status = saveState === "saving" ? t("saving") : dirty ? t("unsaved") : saveState === "saved" ? t("saved") : null;
 
   return (
-    <div ref={rootRef} data-bb-ru-skip="" className="flex h-full min-h-0 flex-col bg-background text-foreground">
+    <div ref={rootRef} data-bb-ru-skip="" style={{ "--mdpro-font-size": fontSize === null ? undefined : `${fontSize}px` } as CSSProperties} className="flex h-full min-h-0 flex-col bg-background text-foreground">
       <style>{RICH_CSS}</style>
       <div className="flex min-h-10 items-center gap-2 border-b border-border px-3 py-1.5">
         <div className="min-w-0 flex-1">
@@ -482,6 +503,9 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
             {doc ? `${doc.hostName} · ${doc.absPath}` : path}
           </div>
         </div>
+        <Button variant="ghost" size="icon" className="mdpro-tool size-7" aria-label={t("fontSize")} data-tip={t("fontSize")} onClick={() => { setFontSizeDraft(fontSize === null ? "" : String(fontSize)); setFontSizeOpen(true); }}>
+          <span aria-hidden="true">Aa</span>
+        </Button>
         {status ? <span className="shrink-0 text-xs text-muted-foreground">{status}</span> : null}
         <Button
           variant="ghost"
@@ -616,6 +640,26 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
           </div>
         </div>
       )}
+      <Dialog open={fontSizeOpen} onOpenChange={setFontSizeOpen}>
+        <DialogContent className="mdpro-font-dialog max-w-sm" data-bb-ru-skip="">
+          <DialogHeader><DialogTitle>{t("fontSize")}</DialogTitle></DialogHeader>
+          <form className="space-y-4" onSubmit={(event) => {
+            event.preventDefault();
+            changeFontSize(fontSizeDraft);
+            setFontSizeOpen(false);
+          }}>
+            <label className="flex flex-col gap-2 text-sm">
+              {t("fontSizePixels")}
+              <Input type="number" min={10} max={32} step={1} value={fontSizeDraft} placeholder={t("fontSizeAuto")} onChange={(event) => setFontSizeDraft(event.target.value)} />
+            </label>
+            <p className="text-sm text-muted-foreground">{t("fontSizeHint")}</p>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => { setFontSizeDraft(""); changeFontSize(""); }}>{t("fontSizeAuto")}</Button>
+              <Button type="submit">{t("apply")}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <PromptDialog prompt={prompt} onClose={() => setPrompt(null)} />
     </div>
   );

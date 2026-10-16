@@ -872,7 +872,9 @@ function Toolbar({ editor, onEditLink, end }: { editor: Editor; onEditLink: Rich
 // ---------------------------------------------------------------- styles
 
 export const RICH_CSS = `
-.mdpro-prose { --mdpro-serif: "Charter", "Iowan Old Style", "Source Serif Pro", Georgia, "Times New Roman", serif; --mdpro-accent: #6366f1; outline: none; font-size: 16px; line-height: 1.75; color: var(--foreground); min-height: 60vh; word-wrap: break-word; }
+.mdpro-font-dialog { border-radius: 20px; border-color: var(--pk-border, var(--border)); background: var(--pk-surface, var(--background)); color: var(--pk-text, var(--foreground)); }
+
+.mdpro-prose { --mdpro-serif: "Charter", "Iowan Old Style", "Source Serif Pro", Georgia, "Times New Roman", serif; --mdpro-accent: #6366f1; outline: none; font-size: var(--mdpro-font-size, var(--text-base, 1rem)); line-height: 1.75; color: var(--foreground); min-height: 60vh; word-wrap: break-word; }
 .mdpro-prose > * + * { margin-top: 0.9em; }
 .mdpro-prose > :first-child { margin-top: 0; }
 .mdpro-prose h1, .mdpro-prose h2, .mdpro-prose h3, .mdpro-prose h4 { font-family: var(--mdpro-serif); font-weight: 700; letter-spacing: -0.01em; color: var(--foreground); }
@@ -916,7 +918,7 @@ export const RICH_CSS = `
 .mdpro-code-lang { background: transparent; border: none; outline: none; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: #8b93a7; width: 12em; font-family: var(--font-mono, ui-monospace, monospace); }
 .mdpro-chip { margin-left: auto; font-size: 11px; color: #aab2c5; padding: .15em .6em; border-radius: 6px; }
 .mdpro-chip:hover { background: rgba(255,255,255,.08); color: #fff; }
-.mdpro-code pre { margin: 0; border-radius: 0 0 14px 14px; padding: .6em 1.2em 1.1em; overflow-x: auto; font-size: 13.5px; line-height: 1.65; }
+.mdpro-code pre { margin: 0; border-radius: 0 0 14px 14px; padding: .6em 1.2em 1.1em; overflow-x: auto; font-size: .844em; line-height: 1.65; }
 .mdpro-code .hljs-comment, .mdpro-code .hljs-quote { color: #7d8799; font-style: italic; }
 .mdpro-code .hljs-keyword, .mdpro-code .hljs-selector-tag, .mdpro-code .hljs-doctag, .mdpro-code .hljs-meta .hljs-keyword { color: #ff7b72; }
 .mdpro-code .hljs-string, .mdpro-code .hljs-regexp, .mdpro-code .hljs-addition, .mdpro-code .hljs-meta .hljs-string { color: #a5d6ff; }

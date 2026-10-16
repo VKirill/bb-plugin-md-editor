@@ -10,7 +10,7 @@ import { search, searchKeymap } from "@codemirror/search";
 import { tags } from "@lezer/highlight";
 
 const theme = EditorView.theme({
-  "&": { height: "100%", fontSize: "13px", backgroundColor: "transparent", color: "var(--foreground)" },
+  "&": { height: "100%", fontSize: "var(--mdpro-font-size, var(--text-base, 1rem))", backgroundColor: "transparent", color: "var(--foreground)" },
   "&.cm-focused": { outline: "none" },
   ".cm-scroller": { fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)", lineHeight: "1.6" },
   ".cm-content": { padding: "12px 0", caretColor: "var(--foreground)" },
