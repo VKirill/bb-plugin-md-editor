@@ -1,6 +1,6 @@
 // Rich Markdown editor (Tiptap): formatted text edited in place, a style
 // toolbar, Mermaid diagrams, KaTeX math, GFM tables and task lists.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { EditorContent, NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor, useEditorState } from "@tiptap/react";
 import type { Editor, ReactNodeViewProps } from "@tiptap/react";
@@ -42,6 +42,7 @@ import { SHAPES, addAfter, addNode, deleteNode, isFlowchart, labelOf, nodeIdFrom
 import { looksLikeBoxDiagram, looksLikeForkDiagram } from "./box-diagram";
 import { looksLikeTree, parseTree } from "./tree";
 import { t, type I18nKey } from "./i18n";
+import { EditorEditableContext } from "./hooks/editor-editable";
 
 // ---------------------------------------------------------------- code
 
@@ -147,7 +148,7 @@ function MermaidDiagram({ code, onChange }: { code: string; onChange: ((next: st
         />
       )}
       {editable && svg && !error ? <div className="mdpro-diagram-hint">{t("diagramHint")}</div> : null}
-      {menu ? (
+      {editable && menu ? (
         <div className="mdpro-menu" style={{ left: Math.max(4, menu.x), top: menu.y }} role="menu">
           {menu.nodeId && menu.editing ? (
             <form
@@ -211,6 +212,7 @@ function TreeView({ code }: { code: string }) {
 const COLLAPSE_LINES = 24;
 
 function CodeBlockView({ node, updateAttributes, editor, getPos }: ReactNodeViewProps) {
+  const editable = useContext(EditorEditableContext);
   const language = (node.attrs.language as string | null) ?? "";
   const lower = language.toLowerCase();
   const mermaid = lower === "mermaid";
@@ -237,6 +239,7 @@ function CodeBlockView({ node, updateAttributes, editor, getPos }: ReactNodeView
   }, [effective, node.textContent]);
 
   const setCode = (next: string) => {
+    if (!editor.isEditable) return;
     const pos = typeof getPos === "function" ? getPos() : undefined;
     if (typeof pos !== "number") return;
     editor
@@ -265,11 +268,11 @@ function CodeBlockView({ node, updateAttributes, editor, getPos }: ReactNodeView
           value={language}
           placeholder={box ? t("asciiAuto") : tree ? t("treeAuto") : detected ? `${detected} · ${t("auto")}` : t("language")}
           aria-label={t("codeLanguage")}
-          disabled={!editor.isEditable}
-          onChange={(event) => updateAttributes({ language: event.target.value || null })}
+          disabled={!editable}
+          onChange={(event) => editor.isEditable && updateAttributes({ language: event.target.value || null })}
         />
         <span className="mdpro-code-actions">
-          {jsonPretty && editor.isEditable ? (
+          {jsonPretty && editable ? (
             <button type="button" className="mdpro-chip" onClick={() => setCode(jsonPretty)}>{t("formatJson")}</button>
           ) : null}
           {mermaid ? (
@@ -293,7 +296,7 @@ function CodeBlockView({ node, updateAttributes, editor, getPos }: ReactNodeView
       </div>
       {mermaid ? (
         <div ref={diagramBox} contentEditable={false}>
-          <MermaidDiagram code={node.textContent} onChange={editor.isEditable ? setCode : null} />
+          <MermaidDiagram code={node.textContent} onChange={editable ? setCode : null} />
           {zoomSvg ? <DiagramZoom source={zoomSvg} onClose={() => setZoomSvg(null)} /> : null}
         </div>
       ) : null}
@@ -442,6 +445,8 @@ export function revealSourceLine(editor: Editor, source: string, line: number): 
 
 export type RichEditorProps = {
   initialMarkdown: string;
+  editable: boolean;
+  showToolbar: boolean;
   onChange: (markdown: string) => void;
   onReady: (editor: Editor, normalized: string) => void;
   onLink: (href: string, event: MouseEvent) => boolean;
@@ -464,6 +469,7 @@ export function RichMarkdownEditor(props: RichEditorProps) {
   const editor = useEditor({
     immediatelyRender: true,
     shouldRerenderOnTransaction: false,
+    editable: props.editable,
     contentType: "markdown",
     content: props.initialMarkdown,
     extensions: [
@@ -479,17 +485,21 @@ export function RichMarkdownEditor(props: RichEditorProps) {
       Highlight,
       RichInlineMath.configure({
         katexOptions: { throwOnError: false, output: "mathml" },
-        onClick: (node, pos) =>
+        onClick: (node, pos) => {
+          if (!callbacks.current.editable) return;
           callbacks.current.onEditMath(String(node.attrs.latex ?? ""), (latex) =>
             editor?.chain().setNodeSelection(pos).updateInlineMath({ latex }).focus().run(),
-          ),
+          );
+        },
       }),
       RichBlockMath.configure({
         katexOptions: { throwOnError: false, output: "mathml", displayMode: true },
-        onClick: (node, pos) =>
+        onClick: (node, pos) => {
+          if (!callbacks.current.editable) return;
           callbacks.current.onEditMath(String(node.attrs.latex ?? ""), (latex) =>
             editor?.chain().setNodeSelection(pos).updateBlockMath({ latex }).focus().run(),
-          ),
+          );
+        },
       }),
       RawHtmlInline,
       RawHtmlWithView,
@@ -578,10 +588,18 @@ export function RichMarkdownEditor(props: RichEditorProps) {
     onUpdate: ({ editor: updated }) => callbacks.current.onChange(updated.getMarkdown()),
   });
 
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    setMenu(null);
+    editor.setEditable(props.editable, false);
+    if (!props.editable) editor.commands.blur();
+  }, [editor, props.editable]);
+
   if (!editor) return null;
   return (
+    <EditorEditableContext.Provider value={props.editable}>
     <div className="flex h-full min-h-0 flex-col">
-      <Toolbar editor={editor} onEditLink={props.onEditLink} end={props.toolbarEnd} />
+      {props.editable && props.showToolbar ? <Toolbar editor={editor} onEditLink={props.onEditLink} end={props.toolbarEnd} /> : null}
       <div className="mdpro-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="w-full max-w-4xl px-5 py-6">
           <EditorContent editor={editor} />
@@ -609,6 +627,7 @@ export function RichMarkdownEditor(props: RichEditorProps) {
         />
       ) : null}
     </div>
+    </EditorEditableContext.Provider>
   );
 }
 
@@ -872,6 +891,14 @@ function Toolbar({ editor, onEditLink, end }: { editor: Editor; onEditLink: Rich
 // ---------------------------------------------------------------- styles
 
 export const RICH_CSS = `
+.mdpro-editor, .mdpro-actions { --mdpro-well: var(--pk-well, color-mix(in oklab, var(--muted) 45%, var(--card))); --mdpro-card: var(--pk-card, var(--card)); --mdpro-outline: var(--pk-outline, var(--input)); --mdpro-hairline: var(--pk-hairline, var(--border)); --mdpro-drop: var(--pk-drop, 0 1px 2px rgb(0 0 0 / 0.06)); }
+.mdpro-seg { align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--mdpro-hairline); border-radius: 9px; background: var(--mdpro-well); }
+.mdpro-seg-item { border-radius: 6px; color: var(--muted-foreground); font-weight: 500; }
+.mdpro-seg-item[aria-pressed="true"] { background: var(--mdpro-card); box-shadow: 0 1px 3px rgb(0 0 0 / 0.12); color: var(--foreground); font-weight: 600; }
+.mdpro-raised, .mdpro-actions { border: 1px solid var(--mdpro-outline); border-radius: 8px; background: var(--mdpro-card); box-shadow: var(--mdpro-drop); }
+.mdpro-pill { display: inline-flex; flex-shrink: 0; padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+.mdpro-pill-warning { background: color-mix(in oklab, var(--warning) 16%, transparent); color: var(--warning-text, var(--foreground)); }
+.mdpro-pill-info { background: color-mix(in oklab, var(--timeline-accent) 13%, transparent); color: var(--timeline-accent, var(--foreground)); }
 .mdpro-font-dialog { border-radius: 20px; border-color: var(--pk-border, var(--border)); background: var(--pk-surface, var(--background)); color: var(--pk-text, var(--foreground)); }
 
 .mdpro-prose { --mdpro-serif: "Charter", "Iowan Old Style", "Source Serif Pro", Georgia, "Times New Roman", serif; --mdpro-accent: #6366f1; outline: none; font-size: var(--mdpro-font-size, var(--text-base, 1rem)); line-height: 1.75; color: var(--foreground); min-height: 60vh; word-wrap: break-word; }

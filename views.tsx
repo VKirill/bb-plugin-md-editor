@@ -1,11 +1,12 @@
 // Node views for agent-style Markdown blocks: callouts, <details>, raw HTML.
-import { useMemo, useState, type ReactNode } from "react";
+import { useContext, useMemo, useState, type ReactNode } from "react";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import type { ReactNodeViewProps } from "@tiptap/react";
 import { AsciiDiagram, Callout, Details, HtmlRegion, RawHtmlBlock } from "./md-extensions";
 import { parseBoxDiagram, parseForkDiagram, type ForkNode } from "./box-diagram";
 import { t } from "./i18n";
 import { cn } from "@/lib/utils";
+import { EditorEditableContext } from "./hooks/editor-editable";
 
 type Tone = "info" | "tip" | "important" | "warning" | "danger" | "success" | "quote";
 
@@ -22,6 +23,7 @@ const TONE_ICON: Record<Tone, string> = { info: "ℹ", tip: "💡", important: "
 export const CALLOUT_MENU = ["NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION"] as const;
 
 function CalloutView({ node, updateAttributes, editor }: ReactNodeViewProps) {
+  const editable = useContext(EditorEditableContext);
   const kind = String(node.attrs.kind ?? "NOTE");
   const tone = KIND_TONE[kind.toLowerCase()] ?? "info";
   const fold = String(node.attrs.fold ?? "");
@@ -41,8 +43,8 @@ function CalloutView({ node, updateAttributes, editor }: ReactNodeViewProps) {
           className="mdpro-callout-kind"
           value={kind.toUpperCase()}
           aria-label={t("calloutType")}
-          disabled={!editor.isEditable}
-          onChange={(event) => updateAttributes({ kind: event.target.value })}
+          disabled={!editable}
+          onChange={(event) => editor.isEditable && updateAttributes({ kind: event.target.value })}
         >
           {[...new Set([kind.toUpperCase(), ...CALLOUT_MENU])].map((k) => (
             <option key={k} value={k}>{k.charAt(0) + k.slice(1).toLowerCase()}</option>
@@ -53,8 +55,8 @@ function CalloutView({ node, updateAttributes, editor }: ReactNodeViewProps) {
           value={title}
           placeholder={label}
           aria-label={t("calloutTitle")}
-          disabled={!editor.isEditable}
-          onChange={(event) => updateAttributes({ title: event.target.value })}
+          disabled={!editable}
+          onChange={(event) => editor.isEditable && updateAttributes({ title: event.target.value })}
         />
       </div>
       <NodeViewContent className={cn("mdpro-callout-body", collapsed && "mdpro-hidden")} />
@@ -83,6 +85,7 @@ function renderSummary(text: string): ReactNode[] {
 }
 
 function DetailsView({ node, updateAttributes, editor }: ReactNodeViewProps) {
+  const editable = useContext(EditorEditableContext);
   const [open, setOpen] = useState(Boolean(node.attrs.open));
   const [editing, setEditing] = useState(false);
   const summary = String(node.attrs.summary ?? "");
@@ -92,22 +95,22 @@ function DetailsView({ node, updateAttributes, editor }: ReactNodeViewProps) {
         <button type="button" className="mdpro-details-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
           {open ? "▾" : "▸"}
         </button>
-        {editing || (!summary && editor.isEditable) ? (
+        {editable && (editing || !summary) ? (
           <input
             className="mdpro-details-summary"
             value={summary}
             placeholder={t("detailsSummary")}
             aria-label={t("detailsSummary")}
             autoFocus={editing}
-            disabled={!editor.isEditable}
+            disabled={!editable}
             onBlur={() => setEditing(false)}
             onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
-            onChange={(event) => updateAttributes({ summary: event.target.value })}
+            onChange={(event) => editor.isEditable && updateAttributes({ summary: event.target.value })}
           />
         ) : (
           <span
             className="mdpro-details-summary mdpro-details-summary-view"
-            onClick={() => (editor.isEditable ? setEditing(true) : setOpen((v) => !v))}
+            onClick={() => (editable ? setEditing(true) : setOpen((v) => !v))}
           >
             {renderSummary(summary)}
           </span>
@@ -142,12 +145,14 @@ function HtmlRegionView({ node }: ReactNodeViewProps) {
 }
 
 function RawHtmlView({ node, updateAttributes, editor, selected }: ReactNodeViewProps) {
+  const editable = useContext(EditorEditableContext);
   const html = String(node.attrs.html ?? "");
   const inner = commentInner(html);
   const comment = inner !== null;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(html);
   const toggleEdit = () => {
+    if (!editor.isEditable) return;
     if (editing) updateAttributes({ html: draft });
     else setDraft(html);
     setEditing((v) => !v);
@@ -158,7 +163,7 @@ function RawHtmlView({ node, updateAttributes, editor, selected }: ReactNodeView
         <span className="mdpro-comment-mark" aria-hidden>{"<!--"}</span>
         <span className="mdpro-comment-text">{inner || t("htmlComment")}</span>
         <span className="mdpro-comment-mark" aria-hidden>{"-->"}</span>
-        {editor.isEditable ? (
+        {editable ? (
           <button type="button" className="mdpro-chip" onClick={toggleEdit}>{t("editCode")}</button>
         ) : null}
       </NodeViewWrapper>
@@ -169,13 +174,13 @@ function RawHtmlView({ node, updateAttributes, editor, selected }: ReactNodeView
       <div className="mdpro-raw-head">
         <span>{comment ? t("htmlComment") : "HTML"}</span>
         <span className="mdpro-raw-note">{t("htmlPreserved")}</span>
-        {editor.isEditable ? (
+        {editable ? (
           <button type="button" className="mdpro-chip" onClick={toggleEdit}>
             {editing ? t("apply") : t("editCode")}
           </button>
         ) : null}
       </div>
-      {editing ? (
+      {editing && editable ? (
         <textarea className="mdpro-raw-edit" value={draft} rows={Math.min(14, draft.split("\n").length + 1)} onChange={(event) => setDraft(event.target.value)} />
       ) : (
         <pre className="mdpro-raw-code">{html}</pre>

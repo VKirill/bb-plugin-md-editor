@@ -14,6 +14,7 @@ import { RICH_CSS, RichMarkdownEditor, revealSourceLine, type AssetResolver } fr
 import { dirnamePosix, normalizePosix, resolveLink, type DocumentContext } from "./links";
 import { joinFrontMatter, splitFrontMatter } from "./frontmatter";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Icon } from "@/components/ui/icon";
 import { Input } from "@/components/ui/input";
 import { FONT_SIZE_KEY, parseFontSize } from "./font-size";
@@ -37,6 +38,7 @@ type Prompt = { title: string; value: string; multiline: boolean; hint?: string;
 const AUTOSAVE_KEY = "md-editor:autosave";
 const AUTOSAVE_MS = 1500;
 const POLL_MS = 4000;
+const MOBILE_QUERY = "(max-width: 767px), (pointer: coarse) and (max-width: 1024px)";
 
 function errorText(cause: unknown) {
   return cause instanceof Error ? cause.message : String(cause);
@@ -110,7 +112,7 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
-function PropertiesPanel({ value, onChange }: { value: string; onChange: (next: string) => void }) {
+export function PropertiesPanel({ value, onChange, editable }: { value: string; onChange: (next: string) => void; editable: boolean }) {
   const [open, setOpen] = useState(false);
   const [editingYaml, setEditingYaml] = useState(false);
   const handle = useRef<EditorHandle>({ view: null }).current;
@@ -139,7 +141,7 @@ function PropertiesPanel({ value, onChange }: { value: string; onChange: (next: 
         </button>
         {open ? (
           <div className="mdpro-props-card">
-            {!editingYaml && parsed.entries.length > 0 ? (
+            {(!editable || !editingYaml) && parsed.entries.length > 0 ? (
               <>
                 {title || status ? (
                   <div className="flex flex-wrap items-center gap-2">
@@ -174,17 +176,17 @@ function PropertiesPanel({ value, onChange }: { value: string; onChange: (next: 
                 ) : null}
               </>
             ) : null}
-            {editingYaml || parsed.error ? (
+            {(editable && editingYaml) || parsed.error ? (
               <div className="rounded-md border border-border">
-                <MarkdownEditor value={value} onChange={onChange} onSave={() => undefined} handle={handle} language="yaml" gutter={false} />
+                {editable ? <MarkdownEditor value={value} onChange={onChange} onSave={() => undefined} handle={handle} language="yaml" gutter={false} /> : null}
                 {parsed.error ? <p className="border-t border-border px-2 py-1 text-xs text-destructive">{parsed.error}</p> : null}
               </div>
             ) : null}
-            <div>
+            {editable ? <div>
               <button type="button" className="mdpro-chip mdpro-chip-plain" onClick={() => setEditingYaml((v) => !v)}>
                 {editingYaml ? t("doneEditing") : t("editYaml")}
               </button>
-            </div>
+            </div> : null}
           </div>
         ) : null}
       </div>
@@ -196,6 +198,19 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
   const rpc = useRpc<typeof rpcContract>();
   const navigate = useBbNavigate();
   const composer = useComposer();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [compact, setCompact] = useState(() => globalThis.matchMedia?.(MOBILE_QUERY).matches ?? false);
+  const [editing, setEditing] = useState(() => !(globalThis.matchMedia?.(MOBILE_QUERY).matches ?? false));
+  const [formattingOpen, setFormattingOpen] = useState(false);
+  const mobile = compact || !editing;
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const observer = new ResizeObserver(([entry]) => setCompact(entry.contentRect.width < 880));
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, []);
 
   const request = useMemo(
     () => ({
@@ -263,8 +278,8 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
     if (current.sourceMode) return current.sourceText;
     return current.dirty ? joinFrontMatter(current.frontMatter, current.body, current.eol) : current.doc.content;
   };
-  const state = useRef({ doc, dirty, missing, sourceMode, sourceText, frontMatter, body, eol, saving: false });
-  state.current = { ...state.current, doc, dirty, missing, sourceMode, sourceText, frontMatter, body, eol };
+  const state = useRef({ doc, dirty, missing, sourceMode, sourceText, frontMatter, body, eol, editing, saving: false });
+  state.current = { ...state.current, doc, dirty, missing, sourceMode, sourceText, frontMatter, body, eol, editing };
 
   const applyContent = useCallback((content: string) => {
     const parts = splitFrontMatter(content);
@@ -304,6 +319,9 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
   useEffect(() => {
     richRef.current = null;
     setDoc(null);
+    setSourceMode(false);
+    setEditing(!(globalThis.matchMedia?.(MOBILE_QUERY).matches ?? false));
+    setFormattingOpen(false);
     void load();
   }, [load]);
 
@@ -375,7 +393,6 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
   );
 
   // Cmd+S anywhere in the panel.
-  const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -422,7 +439,7 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
       if (!state.current.sourceMode && editor && !editor.isDestroyed && revealSourceLine(editor, content, experimental_lineRange.startLineNumber)) return;
       setSourceMode(true);
       setTimeout(() => {
-        if (sourceHandle.view) revealLines(sourceHandle.view, experimental_lineRange.startLineNumber, experimental_lineRange.endLineNumber);
+        if (sourceHandle.view) revealLines(sourceHandle.view, experimental_lineRange.startLineNumber, experimental_lineRange.endLineNumber, state.current.editing);
       }, 50);
     }, 250);
     return () => clearTimeout(timer);
@@ -451,6 +468,13 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
       setSourceText(composed());
       setSourceMode(true);
     }
+  };
+
+  const selectMode = (mode: "formatted" | "raw" | "edit") => {
+    if (mode === "raw" && !sourceMode) toggleSource();
+    if (mode !== "raw" && sourceMode) toggleSource();
+    setEditing(mode === "edit");
+    setFormattingOpen(false);
   };
 
   const onLink = (href: string, event: MouseEvent) => {
@@ -491,23 +515,68 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
   const status = saveState === "saving" ? t("saving") : dirty ? t("unsaved") : saveState === "saved" ? t("saved") : null;
 
   return (
-    <div ref={rootRef} data-bb-ru-skip="" style={{ "--mdpro-font-size": fontSize === null ? undefined : `${fontSize}px` } as CSSProperties} className="flex h-full min-h-0 flex-col bg-background text-foreground">
+    <div ref={rootRef} data-bb-ru-skip="" style={{ "--mdpro-font-size": fontSize === null ? undefined : `${fontSize}px` } as CSSProperties} className="mdpro-editor flex h-full min-h-0 flex-col bg-background text-foreground">
       <style>{RICH_CSS}</style>
-      <div className="flex min-h-10 items-center gap-2 border-b border-border px-3 py-1.5">
-        <div className="min-w-0 flex-1">
+      <div className={cn("border-b border-border", mobile ? "flex flex-col gap-1 px-2 py-1" : "flex min-h-10 items-center gap-2 px-3 py-1.5")}>
+        <div className={cn("min-w-0", mobile ? "w-full" : "flex-1")}>
           <div className="flex items-center gap-1.5 text-sm font-medium">
             <span className="truncate">{path.split("/").pop()}</span>
-            {dirty ? <span aria-label={t("unsavedDot")} className="size-1.5 shrink-0 rounded-full bg-amber-500" /> : null}
+            {dirty ? <span aria-label={t("unsavedDot")} className="size-1.5 shrink-0 rounded-full bg-warning" /> : null}
+            {mobile && status ? <span role="status" className={cn("mdpro-pill ml-auto", dirty ? "mdpro-pill-warning" : "mdpro-pill-info")}>{status}</span> : null}
           </div>
           <div className="truncate text-xs text-muted-foreground" title={doc ? `${doc.hostName} · ${doc.absPath}` : path}>
             {doc ? `${doc.hostName} · ${doc.absPath}` : path}
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="mdpro-tool size-7" aria-label={t("fontSize")} data-tip={t("fontSize")} onClick={() => { setFontSizeDraft(fontSize === null ? "" : String(fontSize)); setFontSizeOpen(true); }}>
+        {!mobile ? <Button variant="ghost" size="icon" className="mdpro-tool size-7" aria-label={t("fontSize")} data-tip={t("fontSize")} onClick={() => { setFontSizeDraft(fontSize === null ? "" : String(fontSize)); setFontSizeOpen(true); }}>
           <span aria-hidden="true">Aa</span>
-        </Button>
-        {status ? <span className="shrink-0 text-xs text-muted-foreground">{status}</span> : null}
-        <Button
+        </Button> : null}
+        {!mobile && status ? <span className="shrink-0 text-xs text-muted-foreground">{status}</span> : null}
+        {mobile ? <div className="flex w-full min-w-0 flex-nowrap items-center gap-1">
+          <div role="group" aria-label={t("displayMode")} className="mdpro-seg flex min-w-0 flex-1">
+            {([
+              ["formatted", "formattedShort", "formattedView"],
+              ["raw", "rawShort", "rawView"],
+              ["edit", "editShort", "edit"],
+            ] as const).map(([mode, shortLabel, fullLabel]) => (
+              <Button
+                key={mode}
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label={t(fullLabel)}
+                aria-pressed={(editing ? "edit" : sourceMode ? "raw" : "formatted") === mode}
+                onClick={() => selectMode(mode)}
+                className="mdpro-seg-item h-9 min-w-0 flex-1 px-2 text-xs"
+              >
+                {t(shortLabel)}
+              </Button>
+            ))}
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" aria-label={t("moreActions")} className="mdpro-raised h-10 w-10 shrink-0"><span aria-hidden="true">⋯</span></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" mobileTitle={t("moreActions")} className="mdpro-actions">
+              {dirty ? <DropdownMenuItem disabled={saveState === "saving"} onSelect={() => void save()}>
+                {t("save")}
+              </DropdownMenuItem> : null}
+              <DropdownMenuItem onSelect={() => { setFontSizeDraft(fontSize === null ? "" : String(fontSize)); setFontSizeOpen(true); }}>
+                {t("fontSize")}
+              </DropdownMenuItem>
+              {editing && !sourceMode ? <DropdownMenuItem onSelect={() => setFormattingOpen((open) => !open)}>
+                {formattingOpen ? t("hideFormatting") : t("showFormatting")}
+              </DropdownMenuItem> : null}
+              <DropdownMenuItem onSelect={() => {
+                const next = !autosave;
+                setAutosave(next);
+                globalThis.localStorage?.setItem(AUTOSAVE_KEY, next ? "on" : "off");
+              }}>
+                {autosave ? t("autosaveOn") : t("autosaveOff")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div> : <Button
           variant="ghost"
           size="icon"
           className="mdpro-tool size-7"
@@ -521,10 +590,10 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
           }}
         >
           <Icon name={autosave ? "Repeat" : "Pause"} className="size-3.5" />
-        </Button>
-        <Button size="sm" variant={dirty ? "default" : "outline"} disabled={!dirty || saveState === "saving"} onClick={() => void save()}>
+        </Button>}
+        {!mobile ? <Button size="sm" variant={dirty ? "default" : "outline"} disabled={!dirty || saveState === "saving"} onClick={() => void save()}>
           {t("save")}
-        </Button>
+        </Button> : null}
       </div>
 
       {externalChange && saveState !== "conflict" ? (
@@ -571,21 +640,23 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
         <div className="relative flex min-h-0 flex-1 flex-col">
           {sourceMode ? (
             <div className="flex min-h-0 flex-1 flex-col">
-              <div className="flex items-center gap-2 border-b border-border px-3 py-1 text-xs text-muted-foreground">
+              {!mobile || editing ? <div className="flex items-center gap-2 border-b border-border px-3 py-1 text-xs text-muted-foreground">
                 <span className="flex-1">{t("sourceTitle")}</span>
                 <Button size="sm" variant="outline" onClick={toggleSource}>{t("backToEditor")}</Button>
-              </div>
+              </div> : null}
               <div className="min-h-0 flex-1">
-                <MarkdownEditor value={sourceText} onChange={setSourceText} onSave={() => void save()} handle={sourceHandle} />
+                <MarkdownEditor value={sourceText} onChange={setSourceText} onSave={() => void save()} handle={sourceHandle} editable={editing} />
               </div>
             </div>
           ) : null}
           <div className={cn("flex min-h-0 flex-1 flex-col", sourceMode && "hidden")}>
-            {frontMatter !== null ? <PropertiesPanel value={frontMatter} onChange={setFrontMatter} /> : null}
+            {frontMatter !== null ? <PropertiesPanel value={frontMatter} onChange={setFrontMatter} editable={editing} /> : null}
             <div className="min-h-0 flex-1">
               <RichMarkdownEditor
                 key={version}
                 initialMarkdown={body}
+                editable={editing}
+                showToolbar={!mobile || formattingOpen}
                 resolveAsset={resolveAsset}
                 onReady={(editor, normalized) => {
                   richRef.current = editor;

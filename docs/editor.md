@@ -26,6 +26,18 @@ This component presents Markdown as an editable document, preserves a source mod
 
 ## How it works
 
+### Reading and editing on mobile
+
+On viewports narrower than 768 px, or coarse-pointer devices up to 1024 px, each file starts in formatted read-only mode. **View** reads formatted text, **Code** reads the full source, and **Edit** explicitly enables rich editing. Source editing remains available from the formatting toolbar. Targeted line opens scroll without focusing an editor while reading.
+
+Panels narrower than 880 px use compact controls, including on desktop. Panel resizing changes the layout without changing editability or discarding document state. Save, font size, formatting visibility, and autosave live in BB's responsive actions menu; save status remains visible. Controls use English/Russian strings and Pokecut tokens with BB fallbacks.
+
+Read-only context menus keep quoting, commenting, copying Markdown and references, and opening links/images, while omitting mutations. The shared `EditorEditableContext` reaches Tiptap's React node-view portals, so callout fields, code controls, raw HTML and details update when modes change without recreating the editor. YAML property values remain visible when leaving YAML editing.
+
+`mobile.test.tsx` checks these transitions with real React, Tiptap and CodeMirror instances in jsdom, using a fixture RPC client instead of writing files.
+
+### Document lifecycle
+
 1. The opener constructs a source descriptor from BB’s opener props and requests the file through the typed RPC client (`app.tsx:193-212`, `app.tsx:270-281`).
 2. Loaded text is split into front matter and body; the body is passed to the rich editor as Markdown without emitting an edit event (`app.tsx:248-267`).
 3. `RichMarkdownEditor` initializes Tiptap from Markdown, installs editing extensions and maps callbacks supplied by the opener (`rich.tsx:458-509`).

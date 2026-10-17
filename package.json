@@ -1,6 +1,6 @@
 {
   "name": "bb-plugin-md-editor",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "engines": {
     "bb": ">=0.43",
@@ -63,14 +63,17 @@
     "@radix-ui/react-select": "^2.3.3",
     "@radix-ui/react-tooltip": "^1.2.12",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/jsdom": "^30.0.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "hono": "^4.11.9",
+    "jsdom": "^30.1.3",
     "sonner": "^1.7.4",
     "tailwind-merge": "^3.4.0",
+    "tsx": "^4.23.15",
     "type-fest": "^5.9.0",
     "typescript": "^5.7.0",
     "vaul": "^1.1.2"
@@ -87,7 +90,7 @@
     "file-opener"
   ],
   "scripts": {
-    "test": "node --experimental-strip-types --test links.test.ts locate.test.ts frontmatter.test.ts diagram.test.ts markdown.test.ts quote.test.ts font-size.test.ts",
+    "test": "node --import tsx --test *.test.ts *.test.tsx",
     "typecheck": "tsc --noEmit",
     "build": "bb plugin build ."
   },

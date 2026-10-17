@@ -53,6 +53,24 @@ async function copyText(text: string) {
 
 export function buildContextItems(editor: Editor, target: ContextTarget, actions: ContextActions): ContextItem[] {
   const hasSelection = target.selection.from !== target.selection.to;
+  if (!editor.isEditable) {
+    return [
+      { label: hasSelection ? t("ctxQuote") : t("ctxQuoteBlock"), onSelect: () => actions.quote() },
+      { label: t("ctxComment"), keepOpen: true, onSelect: actions.startComment },
+      "sep",
+      ...(target.link ? [
+        { label: t("ctxOpenLink"), onSelect: () => actions.openLink(target.link!) },
+        { label: t("ctxCopyLink"), onSelect: () => void copyText(target.link!) },
+      ] : []),
+      ...(target.image ? [
+        { label: t("ctxViewImage"), onSelect: () => actions.openImage(target.image!) },
+        { label: t("ctxCopyImagePath"), onSelect: () => void copyText(target.image!) },
+      ] : []),
+      ...(hasSelection ? [{ label: t("ctxCopy"), hint: modKey("C"), onSelect: () => void copyText(editor.state.doc.textBetween(target.selection.from, target.selection.to, "\n")) }] : []),
+      { label: t("ctxCopyMarkdown"), onSelect: () => void copyText(currentFragmentMarkdown(editor)) },
+      { label: t("ctxCopyReference"), onSelect: actions.copyReference },
+    ];
+  }
   const chain = () => editor.chain().focus();
   const inTable = editor.isActive("table");
   const items: ContextItem[] = [
@@ -81,7 +99,7 @@ export function buildContextItems(editor: Editor, target: ContextTarget, actions
   if (hasSelection) {
     items.push(
       { label: t("ctxCut"), hint: modKey("X"), onSelect: () => {
-        void copyText(selectionMarkdown(editor)).then(() => editor.chain().focus().deleteSelection().run());
+        void copyText(selectionMarkdown(editor)).then(() => editor.isEditable && editor.chain().focus().deleteSelection().run());
       } },
       { label: t("ctxCopy"), hint: modKey("C"), onSelect: () => void copyText(editor.state.doc.textBetween(editor.state.selection.from, editor.state.selection.to, "\n")) },
       { label: t("ctxCopyMarkdown"), onSelect: () => void copyText(selectionMarkdown(editor)) },
@@ -92,7 +110,7 @@ export function buildContextItems(editor: Editor, target: ContextTarget, actions
     hint: modKey("V"),
     onSelect: () => {
       navigator.clipboard.readText().then(
-        (text) => chain().insertContent(text, { contentType: "markdown" }).run(),
+        (text) => editor.isEditable && chain().insertContent(text, { contentType: "markdown" }).run(),
         () => toast.message(t("ctxPasteHint")),
       );
     },
