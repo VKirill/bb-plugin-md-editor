@@ -517,8 +517,8 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
   return (
     <div ref={rootRef} data-bb-ru-skip="" style={{ "--mdpro-font-size": fontSize === null ? undefined : `${fontSize}px` } as CSSProperties} className="mdpro-editor flex h-full min-h-0 flex-col bg-background text-foreground">
       <style>{RICH_CSS}</style>
-      <div className={cn("border-b border-border", mobile ? "flex flex-col gap-1 px-2 py-1" : "flex min-h-10 items-center gap-2 px-3 py-1.5")}>
-        <div className={cn("min-w-0", mobile ? "w-full" : "flex-1")}>
+      <div className={cn("flex items-center gap-2 border-b border-border", mobile ? "px-2 py-1" : "min-h-10 px-3 py-1.5")}>
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-sm font-medium">
             <span className="truncate">{path.split("/").pop()}</span>
             {dirty ? <span aria-label={t("unsavedDot")} className="size-1.5 shrink-0 rounded-full bg-warning" /> : null}
@@ -532,7 +532,7 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
           <span aria-hidden="true">Aa</span>
         </Button> : null}
         {!mobile && status ? <span className="shrink-0 text-xs text-muted-foreground">{status}</span> : null}
-        {mobile ? <div className="flex w-full min-w-0 flex-nowrap items-center gap-1">
+        {mobile ? <div className="flex shrink-0 flex-nowrap items-center gap-1">
           <div role="group" aria-label={t("displayMode")} className="mdpro-seg inline-flex min-w-0 shrink-0">
             {([
               ["formatted", "formattedShort", "formattedView"],
