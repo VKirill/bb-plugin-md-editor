@@ -442,6 +442,8 @@ export function revealSourceLine(editor: Editor, source: string, line: number): 
 
 export type RichEditorProps = {
   initialMarkdown: string;
+  editable: boolean;
+  showToolbar: boolean;
   onChange: (markdown: string) => void;
   onReady: (editor: Editor, normalized: string) => void;
   onLink: (href: string, event: MouseEvent) => boolean;
@@ -464,6 +466,7 @@ export function RichMarkdownEditor(props: RichEditorProps) {
   const editor = useEditor({
     immediatelyRender: true,
     shouldRerenderOnTransaction: false,
+    editable: props.editable,
     contentType: "markdown",
     content: props.initialMarkdown,
     extensions: [
@@ -479,17 +482,21 @@ export function RichMarkdownEditor(props: RichEditorProps) {
       Highlight,
       RichInlineMath.configure({
         katexOptions: { throwOnError: false, output: "mathml" },
-        onClick: (node, pos) =>
+        onClick: (node, pos) => {
+          if (!callbacks.current.editable) return;
           callbacks.current.onEditMath(String(node.attrs.latex ?? ""), (latex) =>
             editor?.chain().setNodeSelection(pos).updateInlineMath({ latex }).focus().run(),
-          ),
+          );
+        },
       }),
       RichBlockMath.configure({
         katexOptions: { throwOnError: false, output: "mathml", displayMode: true },
-        onClick: (node, pos) =>
+        onClick: (node, pos) => {
+          if (!callbacks.current.editable) return;
           callbacks.current.onEditMath(String(node.attrs.latex ?? ""), (latex) =>
             editor?.chain().setNodeSelection(pos).updateBlockMath({ latex }).focus().run(),
-          ),
+          );
+        },
       }),
       RawHtmlInline,
       RawHtmlWithView,
@@ -519,6 +526,7 @@ export function RichMarkdownEditor(props: RichEditorProps) {
           return false;
         },
         contextmenu: (view, event) => {
+          if (!callbacks.current.editable) return false;
           if (event.shiftKey) return false;
           event.preventDefault();
           const target = event.target as Element | null;
@@ -578,10 +586,16 @@ export function RichMarkdownEditor(props: RichEditorProps) {
     onUpdate: ({ editor: updated }) => callbacks.current.onChange(updated.getMarkdown()),
   });
 
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    editor.setEditable(props.editable, false);
+    if (!props.editable) editor.commands.blur();
+  }, [editor, props.editable]);
+
   if (!editor) return null;
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <Toolbar editor={editor} onEditLink={props.onEditLink} end={props.toolbarEnd} />
+      {props.editable && props.showToolbar ? <Toolbar editor={editor} onEditLink={props.onEditLink} end={props.toolbarEnd} /> : null}
       <div className="mdpro-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className="w-full max-w-4xl px-5 py-6">
           <EditorContent editor={editor} />

@@ -12,7 +12,11 @@ BB 0.43 or later is required. The plugin registers `.md`, `.markdown`, and `.mdx
 
 ## Font size
 
-Use **Aa** in the editor header to set a font size (10–32 px), or choose **Follow BB** (the default). Formatted text and Markdown/YAML source follow BB’s `--text-base` typography token and root scale automatically. The optional override is saved in this browser and shared by open documents; it does not change the file. The control follows BB’s English or Russian interface language.
+Use **Aa** in the desktop editor header or **Font size** in the mobile actions menu to set a font size (10–32 px), or choose **Follow BB** (the default). Formatted text and Markdown/YAML source follow BB’s `--text-base` typography token and root scale automatically. The optional override is saved in this browser and shared by open documents; it does not change the file. The control follows BB’s English or Russian interface language.
+
+## Mobile viewing
+
+On narrow screens and touch devices up to 1024 px wide, files open in formatted, read-only mode without focusing an editor. The compact **View**, **Code**, and **Edit** buttons switch between formatted viewing, read-only Markdown source, and editing. The active mode has a subtle highlight. The actions menu holds Save, font size, formatting tools, and autosave controls; Save appears when the document has unsaved changes.
 
 ## Documentation
 

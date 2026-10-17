@@ -175,7 +175,7 @@ function RawHtmlView({ node, updateAttributes, editor, selected }: ReactNodeView
           </button>
         ) : null}
       </div>
-      {editing ? (
+      {editing && editor.isEditable ? (
         <textarea className="mdpro-raw-edit" value={draft} rows={Math.min(14, draft.split("\n").length + 1)} onChange={(event) => setDraft(event.target.value)} />
       ) : (
         <pre className="mdpro-raw-code">{html}</pre>

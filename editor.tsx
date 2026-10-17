@@ -1,6 +1,6 @@
 // CodeMirror 6 Markdown source editor themed from BB's CSS variables.
 import { useEffect, useRef } from "react";
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
@@ -50,6 +50,7 @@ export function MarkdownEditor({
   handle,
   language = "markdown",
   gutter = true,
+  editable = true,
 }: {
   value: string;
   onChange: (next: string) => void;
@@ -57,8 +58,10 @@ export function MarkdownEditor({
   handle: EditorHandle;
   language?: "markdown" | "yaml";
   gutter?: boolean;
+  editable?: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
+  const editableCompartment = useRef(new Compartment()).current;
   const callbacks = useRef({ onChange, onSave });
   callbacks.current = { onChange, onSave };
 
@@ -69,6 +72,7 @@ export function MarkdownEditor({
       state: EditorState.create({
         doc: value,
         extensions: [
+          editableCompartment.of([EditorView.editable.of(editable), EditorState.readOnly.of(!editable)]),
           ...(gutter ? [lineNumbers()] : []),
           history(),
           drawSelection(),
@@ -102,6 +106,11 @@ export function MarkdownEditor({
   }, []);
 
   useEffect(() => {
+    handle.view?.dispatch({ effects: editableCompartment.reconfigure([EditorView.editable.of(editable), EditorState.readOnly.of(!editable)]) });
+    if (!editable) handle.view?.contentDOM.blur();
+  }, [editable, editableCompartment, handle]);
+
+  useEffect(() => {
     const view = handle.view;
     if (!view) return;
     const current = view.state.doc.toString();
@@ -111,10 +120,10 @@ export function MarkdownEditor({
   return <div ref={host} className={gutter ? "h-full min-h-0 overflow-hidden" : "min-h-0"} />;
 }
 
-export function revealLines(view: EditorView, startLine: number, endLine: number) {
+export function revealLines(view: EditorView, startLine: number, endLine: number, focus = true) {
   const doc = view.state.doc;
   const from = doc.line(Math.min(Math.max(1, startLine), doc.lines)).from;
   const to = doc.line(Math.min(Math.max(1, endLine), doc.lines)).to;
   view.dispatch({ selection: { anchor: from, head: to }, effects: EditorView.scrollIntoView(from, { y: "center" }) });
-  view.focus();
+  if (focus) view.focus();
 }

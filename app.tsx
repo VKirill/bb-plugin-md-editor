@@ -37,6 +37,7 @@ type Prompt = { title: string; value: string; multiline: boolean; hint?: string;
 const AUTOSAVE_KEY = "md-editor:autosave";
 const AUTOSAVE_MS = 1500;
 const POLL_MS = 4000;
+const MOBILE_QUERY = "(max-width: 767px), (pointer: coarse) and (max-width: 1024px)";
 
 function errorText(cause: unknown) {
   return cause instanceof Error ? cause.message : String(cause);
@@ -110,7 +111,7 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
-function PropertiesPanel({ value, onChange }: { value: string; onChange: (next: string) => void }) {
+function PropertiesPanel({ value, onChange, editable }: { value: string; onChange: (next: string) => void; editable: boolean }) {
   const [open, setOpen] = useState(false);
   const [editingYaml, setEditingYaml] = useState(false);
   const handle = useRef<EditorHandle>({ view: null }).current;
@@ -174,17 +175,17 @@ function PropertiesPanel({ value, onChange }: { value: string; onChange: (next: 
                 ) : null}
               </>
             ) : null}
-            {editingYaml || parsed.error ? (
+            {(editable && editingYaml) || parsed.error ? (
               <div className="rounded-md border border-border">
-                <MarkdownEditor value={value} onChange={onChange} onSave={() => undefined} handle={handle} language="yaml" gutter={false} />
+                {editable ? <MarkdownEditor value={value} onChange={onChange} onSave={() => undefined} handle={handle} language="yaml" gutter={false} /> : null}
                 {parsed.error ? <p className="border-t border-border px-2 py-1 text-xs text-destructive">{parsed.error}</p> : null}
               </div>
             ) : null}
-            <div>
+            {editable ? <div>
               <button type="button" className="mdpro-chip mdpro-chip-plain" onClick={() => setEditingYaml((v) => !v)}>
                 {editingYaml ? t("doneEditing") : t("editYaml")}
               </button>
-            </div>
+            </div> : null}
           </div>
         ) : null}
       </div>
@@ -196,6 +197,20 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
   const rpc = useRpc<typeof rpcContract>();
   const navigate = useBbNavigate();
   const composer = useComposer();
+  const [mobile, setMobile] = useState(() => globalThis.matchMedia?.(MOBILE_QUERY).matches ?? false);
+  const [editing, setEditing] = useState(() => !(globalThis.matchMedia?.(MOBILE_QUERY).matches ?? false));
+  const [formattingOpen, setFormattingOpen] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia(MOBILE_QUERY);
+    const update = () => {
+      setMobile(query.matches);
+      setEditing(!query.matches);
+      setFormattingOpen(false);
+    };
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
 
   const request = useMemo(
     () => ({
@@ -422,7 +437,7 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
       if (!state.current.sourceMode && editor && !editor.isDestroyed && revealSourceLine(editor, content, experimental_lineRange.startLineNumber)) return;
       setSourceMode(true);
       setTimeout(() => {
-        if (sourceHandle.view) revealLines(sourceHandle.view, experimental_lineRange.startLineNumber, experimental_lineRange.endLineNumber);
+        if (sourceHandle.view) revealLines(sourceHandle.view, experimental_lineRange.startLineNumber, experimental_lineRange.endLineNumber, editing);
       }, 50);
     }, 250);
     return () => clearTimeout(timer);
@@ -451,6 +466,13 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
       setSourceText(composed());
       setSourceMode(true);
     }
+  };
+
+  const selectMode = (mode: "formatted" | "raw" | "edit") => {
+    if (mode === "raw" && !sourceMode) toggleSource();
+    if (mode !== "raw" && sourceMode) toggleSource();
+    setEditing(mode === "edit");
+    setFormattingOpen(false);
   };
 
   const onLink = (href: string, event: MouseEvent) => {
@@ -493,8 +515,8 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
   return (
     <div ref={rootRef} data-bb-ru-skip="" style={{ "--mdpro-font-size": fontSize === null ? undefined : `${fontSize}px` } as CSSProperties} className="flex h-full min-h-0 flex-col bg-background text-foreground">
       <style>{RICH_CSS}</style>
-      <div className="flex min-h-10 items-center gap-2 border-b border-border px-3 py-1.5">
-        <div className="min-w-0 flex-1">
+      <div className={cn("border-b border-border", mobile ? "flex flex-col gap-1 px-2 py-1" : "flex min-h-10 items-center gap-2 px-3 py-1.5")}>
+        <div className={cn("min-w-0", mobile ? "w-full" : "flex-1")}>
           <div className="flex items-center gap-1.5 text-sm font-medium">
             <span className="truncate">{path.split("/").pop()}</span>
             {dirty ? <span aria-label={t("unsavedDot")} className="size-1.5 shrink-0 rounded-full bg-amber-500" /> : null}
@@ -503,11 +525,57 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
             {doc ? `${doc.hostName} · ${doc.absPath}` : path}
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="mdpro-tool size-7" aria-label={t("fontSize")} data-tip={t("fontSize")} onClick={() => { setFontSizeDraft(fontSize === null ? "" : String(fontSize)); setFontSizeOpen(true); }}>
+        {!mobile ? <Button variant="ghost" size="icon" className="mdpro-tool size-7" aria-label={t("fontSize")} data-tip={t("fontSize")} onClick={() => { setFontSizeDraft(fontSize === null ? "" : String(fontSize)); setFontSizeOpen(true); }}>
           <span aria-hidden="true">Aa</span>
-        </Button>
-        {status ? <span className="shrink-0 text-xs text-muted-foreground">{status}</span> : null}
-        <Button
+        </Button> : null}
+        {!mobile && status ? <span className="shrink-0 text-xs text-muted-foreground">{status}</span> : null}
+        {mobile ? <div className="flex w-full min-w-0 flex-nowrap items-center gap-1">
+          <div role="group" aria-label={t("displayMode")} className="flex h-7 min-w-0 flex-1 items-center rounded-md border border-border bg-muted/20 p-px">
+            {([
+              ["formatted", "formattedShort", "formattedView"],
+              ["raw", "rawShort", "rawView"],
+              ["edit", "editShort", "edit"],
+            ] as const).map(([mode, shortLabel, fullLabel]) => (
+              <button
+                key={mode}
+                type="button"
+                aria-label={t(fullLabel)}
+                aria-pressed={(editing ? "edit" : sourceMode ? "raw" : "formatted") === mode}
+                onClick={() => selectMode(mode)}
+                className={cn(
+                  "h-full min-w-0 flex-1 rounded px-0.5 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                  (editing ? "edit" : sourceMode ? "raw" : "formatted") === mode
+                    ? "bg-accent/60 text-foreground"
+                    : "text-muted-foreground hover:bg-accent/30 hover:text-foreground",
+                )}
+              >
+                {t(shortLabel)}
+              </button>
+            ))}
+          </div>
+          <details className="relative shrink-0">
+            <summary aria-label={t("moreActions")} className="flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-md border border-input text-lg leading-none text-foreground [&::-webkit-details-marker]:hidden">⋯</summary>
+            <div className="absolute right-0 top-full z-50 mt-1 min-w-44 rounded-md border border-border bg-background p-1 shadow-lg">
+              {dirty ? <button type="button" disabled={saveState === "saving"} className="block w-full rounded px-2 py-2 text-left text-xs hover:bg-accent disabled:opacity-50" onClick={(event) => { void save(); event.currentTarget.closest("details")!.open = false; }}>
+                {t("save")}
+              </button> : null}
+              <button type="button" className="block w-full rounded px-2 py-2 text-left text-xs hover:bg-accent" onClick={(event) => { setFontSizeDraft(fontSize === null ? "" : String(fontSize)); setFontSizeOpen(true); event.currentTarget.closest("details")!.open = false; }}>
+                {t("fontSize")}
+              </button>
+              {editing && !sourceMode ? <button type="button" className="block w-full rounded px-2 py-2 text-left text-xs hover:bg-accent" onClick={(event) => { setFormattingOpen((open) => !open); event.currentTarget.closest("details")!.open = false; }}>
+                {formattingOpen ? t("hideFormatting") : t("showFormatting")}
+              </button> : null}
+              <button type="button" className="block w-full rounded px-2 py-2 text-left text-xs hover:bg-accent" onClick={(event) => {
+                const next = !autosave;
+                setAutosave(next);
+                globalThis.localStorage?.setItem(AUTOSAVE_KEY, next ? "on" : "off");
+                event.currentTarget.closest("details")!.open = false;
+              }}>
+                {autosave ? t("autosaveOn") : t("autosaveOff")}
+              </button>
+            </div>
+          </details>
+        </div> : <Button
           variant="ghost"
           size="icon"
           className="mdpro-tool size-7"
@@ -521,10 +589,10 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
           }}
         >
           <Icon name={autosave ? "Repeat" : "Pause"} className="size-3.5" />
-        </Button>
-        <Button size="sm" variant={dirty ? "default" : "outline"} disabled={!dirty || saveState === "saving"} onClick={() => void save()}>
+        </Button>}
+        {!mobile ? <Button size="sm" variant={dirty ? "default" : "outline"} disabled={!dirty || saveState === "saving"} onClick={() => void save()}>
           {t("save")}
-        </Button>
+        </Button> : null}
       </div>
 
       {externalChange && saveState !== "conflict" ? (
@@ -571,21 +639,23 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
         <div className="relative flex min-h-0 flex-1 flex-col">
           {sourceMode ? (
             <div className="flex min-h-0 flex-1 flex-col">
-              <div className="flex items-center gap-2 border-b border-border px-3 py-1 text-xs text-muted-foreground">
+              {!mobile || editing ? <div className="flex items-center gap-2 border-b border-border px-3 py-1 text-xs text-muted-foreground">
                 <span className="flex-1">{t("sourceTitle")}</span>
                 <Button size="sm" variant="outline" onClick={toggleSource}>{t("backToEditor")}</Button>
-              </div>
+              </div> : null}
               <div className="min-h-0 flex-1">
-                <MarkdownEditor value={sourceText} onChange={setSourceText} onSave={() => void save()} handle={sourceHandle} />
+                <MarkdownEditor value={sourceText} onChange={setSourceText} onSave={() => void save()} handle={sourceHandle} editable={editing} />
               </div>
             </div>
           ) : null}
           <div className={cn("flex min-h-0 flex-1 flex-col", sourceMode && "hidden")}>
-            {frontMatter !== null ? <PropertiesPanel value={frontMatter} onChange={setFrontMatter} /> : null}
+            {frontMatter !== null ? <PropertiesPanel value={frontMatter} onChange={setFrontMatter} editable={editing} /> : null}
             <div className="min-h-0 flex-1">
               <RichMarkdownEditor
                 key={version}
                 initialMarkdown={body}
+                editable={editing}
+                showToolbar={!mobile || formattingOpen}
                 resolveAsset={resolveAsset}
                 onReady={(editor, normalized) => {
                   richRef.current = editor;
