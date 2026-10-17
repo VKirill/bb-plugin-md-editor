@@ -2,7 +2,7 @@
 title: Markdown PRO overview
 type: overview
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-17
 status: active
 confidence: medium
 tags: [markdown, bb-plugin, editor]
@@ -13,6 +13,7 @@ sources:
   - server.ts
   - editor.tsx
   - md-extensions.ts
+  - font-size.ts
 ---
 
 # Markdown PRO overview
@@ -25,14 +26,16 @@ The plugin registers a BB app and server entry point through `package.json`, and
 
 The rich editor uses Tiptap Markdown parsing with task lists, tables, math, custom HTML, callouts, and diagram node views (`rich.tsx:464-508`). The CodeMirror source editor supports Markdown or YAML mode and forwards document changes to the opener (`editor.tsx:46-92`).
 
+The **Aa** setting adjusts editor typography; [Markdown editing](editor.md#how-it-works) documents its storage and fallback behavior (`app.tsx:226-244`, `app.tsx:493-508`).
+
 The file opener’s externally visible file behavior is specified in [file access](file-access.md); editor modes and rendered syntax are covered by [editor](editor.md) and [rendering](rendering.md).
 
 ## Stack
 
-- TypeScript with BB Plugin SDK `0.4.87` (`package.json:35-38`).
-- React types `19.x` and Tiptap `3.31.3` (`package.json:15-34`, `package.json:47-51`).
-- CodeMirror 6 packages for source editing (`package.json:14-21`).
-- Mermaid `12.0.0`, KaTeX `0.18.7`, lowlight `3.3.0`, and YAML `2.9.1` (`package.json:39-46`).
+- TypeScript `^5.7.0` and BB Plugin SDK `0.4.87` are dev dependencies (`package.json:53`, `package.json:75`).
+- Declared ranges include React types `^19.0.0` and Tiptap `^3.31.3` (`package.json:33-44`, `package.json:67-68`).
+- CodeMirror 6 packages for source editing (`package.json:22-28`).
+- Declared ranges include Mermaid `^12.0.0`, KaTeX `^0.18.7`, lowlight `^3.3.0`, and YAML `^2.9.1` (`package.json:45-49`).
 
 ## Quick start
 

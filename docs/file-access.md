@@ -2,7 +2,7 @@
 title: Markdown file access
 type: component
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-17
 status: active
 confidence: high
 tags: [files, rpc, bb-plugin]
@@ -25,7 +25,7 @@ The server plugin advertises the `markdown-pro` skill and registers `open`, `sta
 ## How it works
 
 1. `MarkdownFileOpener` sends path, locale, source kind, thread, environment, project, and optional host identifiers (`app.tsx:193-212`).
-2. `locate` resolves that source to a host and absolute path; workspace relative paths are constrained beneath a root, while host paths must be absolute (`locate.ts:91-132`).
+2. `locate` resolves that source to a host and absolute path; relative workspace paths are joined under the selected root, absolute workspace paths pass through directly, and host paths must be absolute (`locate.ts:91-132`).
 3. `open` reads UTF-8 content from that host and returns content, SHA-256, modification time, host identity, absolute path, and root path (`server.ts:77-95`).
 4. `stat` reads the file to probe its current hash and maps not-found errors to `{exists:false}` (`server.ts:97-106`).
 5. `assetBase` requests a one-hour preview URL rooted at the document root for relative image assets (`server.ts:108-112`).
@@ -35,7 +35,7 @@ The server plugin advertises the `markdown-pro` skill and registers `open`, `sta
 | Source kind | Resolution | Boundary and failure |
 |---|---|---|
 | `thread-storage` | Resolve the thread’s storage root and append the requested relative path (`locate.ts:94-98`). | Requires `threadId`; `within` rejects lexical traversal outside the storage root (`locate.ts:49-55`, `locate.ts:94-97`). |
-| `workspace` | Use environment, thread environment, or matching/default project source (`locate.ts:99-115`). | Unknown folder or machine returns `LocateError`; when probing a repository root, candidates remain on the same host (`locate.ts:76-89`, `locate.ts:110-115`). |
+| `workspace` | Use environment, thread environment, or matching/default project source (`locate.ts:99-115`). Relative paths are joined under that root; absolute paths are used directly (`locate.ts:112-115`). | Unknown folder or machine returns `LocateError`; repository-root fallback checks candidates on the same host (`locate.ts:76-89`, `locate.ts:110-115`). Absolute workspace paths bypass `within` and are not constrained to the selected root (`locate.ts:112-115`). |
 | `host` | Require an absolute path; use explicit host, source environment/thread host, then configured primary host (`locate.ts:117-132`). | Fails if path is relative or the owning machine cannot be determined (`locate.ts:117-132`). |
 
 ## Business rules
@@ -44,7 +44,7 @@ The server plugin advertises the `markdown-pro` skill and registers `open`, `sta
 - Open rejects non-UTF-8 files and files over 5 MiB; save content is limited to 5 MiB (`server.ts:9-34`, `server.ts:81-86`, `server.ts:44-49`).
 - Save uses `expectedSha256` for compare-and-swap; a conflict is a normal discriminated result, not a successful write (`server.ts:44-49`, `server.ts:114-122`).
 - A save with `expectedSha256: null` asks BB to create parent directories; non-null hashes do not (`server.ts:114-118`).
-- `within` resolves the candidate path and rejects `..` escapes and absolute paths outside the root (`locate.ts:48-56`).
+- `within` resolves a relative candidate and rejects lexical `..` escapes outside the supplied root (`locate.ts:48-56`). Workspace source resolution calls it for relative paths but accepts an absolute path directly (`locate.ts:112-115`).
 - Relative file links resolve against the document path and remain within the associated root; URL and anchor links take separate navigation paths (`app.tsx:435-452`, `links.ts:47-88`).
 
 ## Public API or commands
