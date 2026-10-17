@@ -18,7 +18,7 @@ Use **Aa** in the desktop header or **Font size** in the compact actions menu to
 
 On screens narrower than 768 px and touch devices up to 1024 px wide, files open formatted and read-only without focusing the editor. **View**, **Code**, and **Edit** switch between formatted reading, read-only Markdown source, and explicit editing. Panels narrower than 880 px use compact controls even on desktop. Resizing preserves your selected mode and unsaved edits.
 
-The BB actions menu holds Save, font size, formatting tools, and autosave; saving status stays visible. The reading context menu retains quoting, comments, and copying references while hiding editing commands. YAML properties remain visible when leaving YAML editing. All controls support English and Russian.
+The mode buttons fit their labels, with larger touch targets on touchscreens. The BB actions menu holds Save, font size, formatting tools, and autosave; saving status stays visible. The reading context menu retains quoting, comments, and copying references while hiding editing commands. YAML properties remain visible when leaving YAML editing. All controls support English and Russian.
 
 ## Documentation
 

@@ -533,7 +533,7 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
         </Button> : null}
         {!mobile && status ? <span className="shrink-0 text-xs text-muted-foreground">{status}</span> : null}
         {mobile ? <div className="flex w-full min-w-0 flex-nowrap items-center gap-1">
-          <div role="group" aria-label={t("displayMode")} className="mdpro-seg flex min-w-0 flex-1">
+          <div role="group" aria-label={t("displayMode")} className="mdpro-seg inline-flex min-w-0 shrink-0">
             {([
               ["formatted", "formattedShort", "formattedView"],
               ["raw", "rawShort", "rawView"],
@@ -547,7 +547,7 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
                 aria-label={t(fullLabel)}
                 aria-pressed={(editing ? "edit" : sourceMode ? "raw" : "formatted") === mode}
                 onClick={() => selectMode(mode)}
-                className="mdpro-seg-item h-9 min-w-0 flex-1 px-2 text-xs"
+                className="mdpro-seg-item h-7 min-w-0 px-2.5 text-xs pointer-coarse:h-9"
               >
                 {t(shortLabel)}
               </Button>
@@ -555,7 +555,7 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" aria-label={t("moreActions")} className="mdpro-raised h-10 w-10 shrink-0"><span aria-hidden="true">⋯</span></Button>
+              <Button variant="outline" size="icon" aria-label={t("moreActions")} className="mdpro-raised h-8 w-8 shrink-0 pointer-coarse:h-10 pointer-coarse:w-10"><span aria-hidden="true">⋯</span></Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" mobileTitle={t("moreActions")} className="mdpro-actions">
               {dirty ? <DropdownMenuItem disabled={saveState === "saving"} onSelect={() => void save()}>
