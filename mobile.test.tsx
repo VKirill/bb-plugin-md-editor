@@ -115,6 +115,9 @@ test("mobile modes keep source read-only and resizing never enables editing", as
     assert.equal(el.querySelector(".mdpro-prose")?.getAttribute("contenteditable"), "true");
     await act(async () => { smallScreen = true; resize?.([{ contentRect: { width: 390 } }]); });
     assert.equal(el.querySelector(".mdpro-prose")?.getAttribute("contenteditable"), "true");
+    assert.ok(el.querySelector('[role="toolbar"]'), "formatting stays visible in Edit after narrowing the panel");
+    await act(async () => { smallScreen = false; resize?.([{ contentRect: { width: 1200 } }]); });
+    assert.ok(button(el, t("formattedShort")), "mode controls stay available on wide panels in Edit");
     await click(button(el, t("formattedShort")));
     assert.equal(el.querySelector(".mdpro-prose")?.getAttribute("contenteditable"), "false");
     assert.equal(writes.length, 0);

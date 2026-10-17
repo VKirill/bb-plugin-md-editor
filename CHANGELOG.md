@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.8 — 2026-10-17
+
+- Keep View / Code / Edit and the actions menu consistent across panel widths.
+- Keep the formatting toolbar visible in Edit when narrowing the panel; controls wrap to fit. Save, font size, and autosave use the same menu at every width.
+
+Thanks @wiliam for the original mobile controls in [#2](https://github.com/VKirill/bb-plugin-md-editor/pull/2).
+
 ## 0.1.7 — 2026-10-17
 
 - Place compact View / Code / Edit controls and the actions menu beside the file name and path to save vertical space. Long names and paths truncate while the controls remain visible.
