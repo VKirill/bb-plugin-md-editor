@@ -2,7 +2,7 @@
 title: Markdown editing
 type: component
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-17
 status: active
 confidence: medium
 tags: [editor, markdown, codemirror, tiptap]
@@ -13,6 +13,7 @@ sources:
   - tabs.ts
   - i18n.ts
   - frontmatter.ts
+  - font-size.ts
 ---
 
 # Markdown editing
@@ -32,6 +33,7 @@ This component presents Markdown as an editable document, preserves a source mod
 5. The opener compares the current body and front matter with baselines, then serializes only when dirty; opening without edits returns the original content (`app.tsx:225-244`).
 6. Source mode can be toggled in either direction; leaving source mode reparses Markdown and restores the rich document (`app.tsx:410-433`).
 7. The opener saves on autosave or the save shortcut and owns conflict handling (`app.tsx:314-375`).
+8. The **Aa** control applies a browser-stored font size to the rich and source editors; clearing the value follows BB typography (`app.tsx:226-244`, `app.tsx:493-508`, `editor.tsx:12-16`, `rich.tsx:877`).
 
 | Mode / state | Input and behavior | Output / failure |
 |---|---|---|
@@ -39,12 +41,14 @@ This component presents Markdown as an editable document, preserves a source mod
 | Source edit | Full source text is shown through CodeMirror (`app.tsx:410-433`, `editor.tsx:46-109`). | Changed text becomes the save content; invalid Markdown does not block source editing (`editor.tsx:89-91`). |
 | YAML properties | Front matter has a separate YAML source editor and properties panel (`app.tsx:111-170`, `app.tsx:227-231`). | Updated YAML rejoins the body on save (`app.tsx:239-244`). |
 | Targeted line open | A requested line first seeks a matching rich block, then switches to source view if unmatched (`app.tsx:394-408`, `rich.tsx:413-439`). | Source view selects the requested line range (`editor.tsx:114-120`). |
+| Font size | The **Aa** dialog accepts whole pixel values from 10 to 32; blank or invalid stored values follow BB typography (`app.tsx:643-659`, `font-size.ts:1-8`). | The value is stored in browser local storage and synced to open documents; rich and source text use the override or BB’s `--text-base` token (`app.tsx:226-244`, `app.tsx:493-495`, `editor.tsx:12-16`, `rich.tsx:877`). |
 | Read-only rendering | `RichMarkdownEditor` receives editor callbacks and the containing opener’s state (`rich.tsx:443-456`). | Rich rendering errors are handled by block-specific renderers; persistence failures are surfaced by the opener (`app.tsx:314-352`). |
 
 ## Business rules
 
 - A clean rich document uses the exact loaded file content; serialization happens only after a detected change (`app.tsx:225-244`).
 - Source mode submits the full source string, while rich mode combines the stored front matter, editor body, and original line ending (`app.tsx:239-244`, `frontmatter.ts:8-20`).
+- A font-size override is shared through browser local storage across open documents; an absent or invalid preference follows BB typography (`app.tsx:226-244`, `font-size.ts:1-8`).
 - CodeMirror’s `Mod-s` invokes the opener save callback (`editor.tsx:82-91`); the opener also handles the shortcut at its root (`app.tsx:356-369`).
 - The tab context menu closes tabs one at a time after re-querying BB’s tab strip, excludes pinned tabs from close groups, and stores pin names per route (`tabs.ts:16-27`, `tabs.ts:50-58`, `tabs.ts:82-114`).
 - Tab menu DOM selectors rely on BB tab-strip data attributes (`tabs.ts:8-12`, `tabs.ts:61-75`).
@@ -57,7 +61,8 @@ This component presents Markdown as an editable document, preserves a source mod
 | `EditorHandle`, `revealLines` | `editor.tsx:44-45`, `editor.tsx:114-120` | Exposes the source view reference and selects a bounded line range. |
 | `RichEditorProps`, `AssetResolver`, `Heading`, `RichMarkdownEditor`, `headingsOf`, `scrollToPos`, `revealSourceLine`, `editLinkFlow`, `insertMenuItems`, `RICH_CSS` | `rich.tsx:330-331`, `rich.tsx:386-395`, `rich.tsx:408-457`, `rich.tsx:458-509`, `rich.tsx:713-763`, `rich.tsx:874-933` | Rich editor types, component, navigation helpers, link/menu actions, and styles. |
 | `mountTabMenu` | `tabs.ts:61-120` | Installs the side-panel tab context menu. |
-| `t`, `detectLocale`, `modKey`, `Locale`, `I18nKey` | `i18n.ts:181-240`, `i18n.ts:361-377` | Locale type, key type, locale detection, and English/Russian UI string lookup. |
+| `t`, `detectLocale`, `modKey`, `Locale`, `I18nKey` | `i18n.ts:185-244`, `i18n.ts:369-385` | Locale type, key type, locale detection, and English/Russian UI string lookup. |
+| `FONT_SIZE_KEY`, `parseFontSize` | `font-size.ts:1-8` | Browser preference key and validation for the optional font-size override. |
 
 ## Gotchas
 

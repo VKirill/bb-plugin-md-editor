@@ -2,9 +2,9 @@
 title: Architecture
 type: architecture
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-17
 status: active
-confidence: high
+confidence: medium
 tags: [architecture, bb-plugin, markdown]
 sources:
   - package.json
@@ -38,7 +38,7 @@ C4Context
   Rel(plugin, bb, "Calls file, preview, and navigation APIs")
 ```
 
-BB supplies the app/server entry points declared in the package manifest; the plugin’s server registers its RPC contract (`package.json:4-12`, `server.ts:65-78`).
+The `bb` manifest declares `./app.tsx` and `./server.ts` as entry points; the server registers the RPC contract (`package.json:9-19`, `server.ts:65-78`).
 
 ## Containers
 
@@ -132,7 +132,7 @@ Evidence: menu operation handlers and callback (`rich.tsx:120-185`), source upda
 ## Invariants
 
 - File operations use a resolved host id and absolute path; source resolution does not choose another machine as fallback (`locate.ts:1-3`, `locate.ts:91-132`).
-- Relative workspace paths are constrained under their root (`locate.ts:48-56`, `locate.ts:99-115`).
+- Relative workspace paths are joined under their root; absolute workspace paths are used directly (`locate.ts:49-55`, `locate.ts:99-115`).
 - The app preserves loaded source bytes when the rich document remains clean (`app.tsx:225-244`).
 - Saves include the loaded hash and expose conflict instead of silently overwriting a changed file (`app.tsx:322-331`, `server.ts:114-122`).
 - Markdown is the source representation for rich node edits (`rich.tsx:464-508`, `mermaid-edit.ts:1-2`).

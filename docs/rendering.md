@@ -2,7 +2,7 @@
 title: Markdown rendering and diagram editing
 type: component
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-17
 status: active
 confidence: high
 tags: [markdown, mermaid, diagrams, rendering]
@@ -33,6 +33,7 @@ The editor registers custom renderers and syntax extensions alongside Tiptap’s
 5. `TreeView` calls `parseTree`; parsed depth, names, folder markers, and comments become rows (`rich.tsx:193-209`, `tree.ts:15-52`).
 6. ASCII maps try split/join parsing first, then vertical box parsing; unrecognized explicit ASCII blocks fall back to preformatted text (`views.tsx:198-239`, `box-diagram.ts:96-178`).
 7. Math, callout, details, HTML, and ASCII node view extensions are installed in the editor (`rich.tsx:480-506`).
+8. Raw HTML blocks and comments render as preserved text; comments get a compact view until edited, and editing commits the draft to the node attributes (`views.tsx:121-185`).
 
 | Block / mode | Detection and output | Failure or edit behavior |
 |---|---|---|
@@ -42,6 +43,7 @@ The editor registers custom renderers and syntax extensions alongside Tiptap’s
 | ASCII box map | `ascii`, `box`, or `diagram` language, or detected box/fork glyphs, selects `BoxDiagramView` (`rich.tsx:213-220`). | Fork parsing needs split/join borders and at least two branch columns; parse failure falls through to box parser or source text (`box-diagram.ts:95-126`, `views.tsx:198-200`, `views.tsx:226-227`). |
 | Code block | Lowlight code view; language can be entered, and blank language can be auto-detected for non-visual code (`rich.tsx:213-228`, `rich.tsx:260-273`). | Blocks longer than 24 lines can collapse; invalid JSON skips pretty formatting (`rich.tsx:211-237`, `rich.tsx:310-317`). |
 | Inline math | `$…$` and `\(…\)` retain the delimiter in the node (`md-extensions.ts:459-481`). | Dollar parsing excludes a price-like `$5 and $10` pattern; KaTeX options disable throw-on-error (`md-extensions.ts:459-474`, `rich.tsx:480-485`). |
+| Raw HTML and comments | The node view recognizes a complete HTML comment and displays its inner text as a compact comment; other raw HTML is shown in a code block (`views.tsx:121-181`). | In edit mode a textarea holds a draft; **Apply** writes the draft to the node, and the view does not execute the HTML (`views.tsx:144-183`). |
 | Callout | `> [!KIND]` syntax stores kind, optional title, fold marker, and block body (`md-extensions.ts:29-65`). | Unknown kinds use the info tone; only a fixed five-kind menu is shown while the existing kind remains selectable (`views.tsx:10-22`, `views.tsx:24-60`). |
 
 ## Business rules

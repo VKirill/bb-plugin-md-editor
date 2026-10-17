@@ -12,7 +12,7 @@ BB 0.43 or later is required. The plugin registers `.md`, `.markdown`, and `.mdx
 
 ## Font size
 
-Use **Aa** in the editor header to set a font size (10–32 px), or choose **Follow BB** (the default). Formatted text and Markdown/YAML source follow BB’s `--text-base` typography token and root scale automatically. The optional override is saved in this browser and shared by open documents; it does not change the file. The control follows BB’s English or Russian interface language.
+Use **Aa** in the editor header to adjust editor typography. See [Markdown editing](docs/editor.md#how-it-works) for the setting’s range, persistence, and fallback behavior.
 
 ## Documentation
 
