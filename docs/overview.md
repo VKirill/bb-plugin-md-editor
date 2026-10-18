@@ -2,7 +2,7 @@
 title: Markdown PRO overview
 type: overview
 created: 2026-10-11
-updated: 2026-10-17
+updated: 2026-10-18
 status: active
 confidence: medium
 tags: [markdown, bb-plugin, editor]
@@ -40,7 +40,7 @@ The file opener’s externally visible file behavior is specified in [file acces
 ## Quick start
 
 1. Install the plugin using the procedure in [Deployment](deployment.md).
-2. Open a `.md`, `.mdx`, or `.markdown` file; the plugin registers those extensions (`app.tsx:624-631`).
+2. Open a `.md`, `.mdx`, or `.markdown` file; the file-opener slot registers all three extensions (`app.tsx:713-718`).
 3. Use formatted editing or switch to source view; save with autosave or the save shortcut (`app.tsx:410-433`).
 
 ## Where to look next

@@ -2,7 +2,7 @@
 title: Deployment
 type: deployment
 created: 2026-10-11
-updated: 2026-10-17
+updated: 2026-10-18
 status: active
 confidence: medium
 tags: [deployment, bb-plugin, release]
@@ -63,7 +63,7 @@ TL;DR: Install the published plugin through BB’s plugin CLI, or build and inst
 
 ## Rollback
 
-1. To leave the Markdown PRO view for a file, select its `Original` action; the opener renders BB’s `Original` component (`app.tsx:455-467`).
+1. To view the file with BB’s standard preview, use **Standard preview** on the open-error panel; the opener renders the `Original` component supplied by BB (`app.tsx:596-606`, `app.tsx:496-505`).
 2. To roll back an installed release, install the chosen known-good plugin revision through BB’s plugin CLI using its source URL or local checkout, then reopen the file. The manifest identifies the BB app and server entry points (`package.json:9-19`); follow the [deployment procedure](#deploy-procedure) with the selected known-good source.
 
 ## Troubleshooting

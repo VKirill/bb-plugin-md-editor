@@ -2,7 +2,7 @@
 title: Architecture
 type: architecture
 created: 2026-10-11
-updated: 2026-10-17
+updated: 2026-10-18
 status: active
 confidence: medium
 tags: [architecture, bb-plugin, markdown]
@@ -133,7 +133,7 @@ Evidence: menu operation handlers and callback (`rich.tsx:120-185`), source upda
 
 - File operations use a resolved host id and absolute path; source resolution does not choose another machine as fallback (`locate.ts:1-3`, `locate.ts:91-132`).
 - Relative workspace paths are joined under their root; absolute workspace paths are used directly (`locate.ts:49-55`, `locate.ts:99-115`).
-- The app preserves loaded source bytes when the rich document remains clean (`app.tsx:225-244`).
+- Rich mode compares normalized body and front matter with their baselines; clean composition returns the loaded content (`app.tsx:270-278`).
 - Saves include the loaded hash and expose conflict instead of silently overwriting a changed file (`app.tsx:322-331`, `server.ts:114-122`).
 - Markdown is the source representation for rich node edits (`rich.tsx:464-508`, `mermaid-edit.ts:1-2`).
 
