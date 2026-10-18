@@ -1,6 +1,6 @@
 ---
 title: Markdown PRO — project facts
-updated: 2026-10-17
+updated: 2026-10-18
 sources:
   - package.json
   - app.tsx
@@ -36,18 +36,18 @@ sources:
 - Source location resolves to the owning host; it does not fall back to another machine (`locate.ts:1-3`, `locate.ts:91-132`). See [file access](docs/file-access.md).
 - Workspace relative paths stay under the selected root; absolute workspace paths are used directly (`locate.ts:49-55`, `locate.ts:112-115`). See [file access](docs/file-access.md).
 - Save sends expected SHA-256 and surfaces conflict instead of silently overwriting (`server.ts:44-49`, `server.ts:114-122`).
-- Clean open does not dirty or rewrite the file (`app.tsx:225-244`). See [editor](docs/editor.md).
+- Rich mode compares normalized body and front matter with their baselines; a clean rich document composes to the loaded file content (`app.tsx:259-277`). See [editor](docs/editor.md).
 
 ## Conventions
 
 - Keep Markdown as the rich editor’s source representation (`rich.tsx:464-508`). See [rendering](docs/rendering.md).
 - Keep machine/path behavior in `locate.ts` and RPC handlers in `server.ts` (`server.ts:77-123`).
-- UI strings go through `t` and support English/Russian (`i18n.ts:3-21`, `i18n.ts:187-205`, `i18n.ts:369-386`).
+- UI strings go through `t`; it selects English or Russian, then expands platform shortcut tokens (`i18n.ts:391-406`). See [editor](docs/editor.md).
 
 ## Common gotchas
 
 - Tab menu depends on BB tab-strip data attributes (`tabs.ts:8-12`). See [gotchas](docs/gotchas.md).
-- Rich edits normalize Markdown; use source mode for exact text edits (`app.tsx:225-244`, `app.tsx:410-433`).
+- Rich edits normalize Markdown; source mode compares and saves the full source text (`app.tsx:270-277`, `app.tsx:273-278`).
 - Mermaid mouse edits apply to flowcharts and graph diagrams (`mermaid-edit.ts:20-22`). See [rendering](docs/rendering.md).
 - Editor typography preference behavior: [editor](docs/editor.md#how-it-works).
 

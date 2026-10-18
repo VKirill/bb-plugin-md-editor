@@ -2,7 +2,7 @@
 title: Markdown file access
 type: component
 created: 2026-10-11
-updated: 2026-10-17
+updated: 2026-10-18
 status: active
 confidence: high
 tags: [files, rpc, bb-plugin]
@@ -30,7 +30,7 @@ The server plugin advertises the `markdown-pro` skill and registers `open`, `sta
 4. `stat` reads the file to probe its current hash and maps not-found errors to `{exists:false}` (`server.ts:97-106`).
 5. `assetBase` requests a one-hour preview URL rooted at the document root for relative image assets (`server.ts:108-112`).
 6. `save` calls BB file write with the expected hash; a changed file returns `conflict`, while a successful write returns its new hash (`server.ts:114-122`).
-7. The app polls `stat`; if the source changed and local edits are dirty it marks an external change, otherwise it reloads (`app.tsx:377-392`).
+7. While the document is open, the app periodically polls `stat` when the page is visible and no save is running. A changed hash sets the external-change state when local content is dirty; otherwise the app reloads the file (`app.tsx:412-427`).
 
 | Source kind | Resolution | Boundary and failure |
 |---|---|---|

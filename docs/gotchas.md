@@ -2,7 +2,7 @@
 title: Gotchas
 type: gotchas
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-18
 status: active
 confidence: medium
 tags: [gotchas, compatibility, files]
@@ -10,6 +10,7 @@ sources:
   - tabs.ts
   - locate.ts
   - app.tsx
+  - frontmatter.ts
   - server.ts
 ---
 
@@ -57,9 +58,9 @@ TL;DR: Changes to BB’s tab-strip markup, file path context, or save conflict s
 
 ### Rich view normalizes Markdown after edits
 
-**Problem:** Rich mode compares normalized editor body and front matter; source mode compares the original full text (`app.tsx:225-244`).
+**Problem:** Rich mode compares normalized editor body and front matter to their baselines; source mode compares the full source string with the loaded content (`app.tsx:270-277`).
 
-**Risk:** Rich serialization can differ from original formatting after a real edit, even though opening alone does not mark the file dirty (`app.tsx:225-244`, `app.tsx:248-267`).
+**Risk:** A rich edit is serialized from front matter, body, and the detected line ending, so its formatting can differ from the loaded source. Merely opening does not mark the document dirty (`app.tsx:270-278`, `frontmatter.ts:16-20`).
 
 **Workaround:** Use source mode when exact Markdown formatting is the editing target (`app.tsx:410-433`).
 
