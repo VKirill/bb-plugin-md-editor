@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.9 — 2026-11-13
+
+- Keep the scroll position when switching between chats.
+
 ## 0.1.8 — 2026-10-17
 
 - Keep View / Code / Edit and the actions menu consistent across panel widths.

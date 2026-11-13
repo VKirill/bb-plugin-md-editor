@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "task_id": "release-0-1-9",
+  "task_sha256": "aefb73adf92ac11cb4e1f690653e6a83ceaddcf4fac50165103220db47bd4662",
+  "attempt": 1,
+  "provider_exit": 0,
+  "report": "complete",
+  "report_sha256": "edfab8d0450a5c0d1324635f81aea3a19b9e53babec59282d9e389e614ee4e6e",
+  "owns_check": "passed",
+  "verification": "passed",
+  "review": "passed",
+  "accepted": true,
+  "accepted_at": "2026-11-13T01:11:59.574Z",
+  "model": "swe-2-flash-medium"
+}
