@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { detectLocale, t } from "./i18n";
 import { findSourceLines, formatChatQuote, lineLabel } from "./quote";
 import { mountTabMenu } from "./tabs";
+import { loadScroll, saveScroll, scrollKey } from "./scroll-memory";
 
 type Loaded = {
   content: string;
@@ -38,6 +39,9 @@ type Prompt = { title: string; value: string; multiline: boolean; hint?: string;
 const AUTOSAVE_KEY = "md-editor:autosave";
 const AUTOSAVE_MS = 1500;
 const POLL_MS = 4000;
+const SCROLL_SAVE_MS = 200;
+const SCROLL_RESTORE_MS = 1000;
+const SCROLL_RETRY_MS = 50;
 const MOBILE_QUERY = "(max-width: 767px), (pointer: coarse) and (max-width: 1024px)";
 
 function errorText(cause: unknown) {
@@ -441,6 +445,95 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
     }, 250);
     return () => clearTimeout(timer);
   }, [experimental_lineRange, doc !== null]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Scroll memory: the opener remounts on every chat switch, so each file's
+  // scroll offsets are kept in localStorage. A targeted open (file.md:120)
+  // wins over the remembered position.
+  const scrollMemKey = doc ? scrollKey(doc.hostId, doc.absPath) : null;
+  const restoredScrollKey = useRef<string | null>(null);
+  const restoredSourceKey = useRef<string | null>(null);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || !scrollMemKey) return;
+    const key = scrollMemKey;
+    const richScroller = () => {
+      const editor = richRef.current;
+      return editor && !editor.isDestroyed ? editor.view.dom.closest(".mdpro-scroll") : null;
+    };
+    const sourceScroller = () => sourceHandle.view?.scrollDOM ?? null;
+    const scrollPos: { rich?: number; source?: number } = {};
+    let saveTimer: ReturnType<typeof setTimeout> | undefined;
+    const flushScroll = () => {
+      saveTimer = undefined;
+      if (!state.current.sourceMode) {
+        const rich = richScroller();
+        if (rich) scrollPos.rich = rich.scrollTop;
+      }
+      const source = sourceScroller();
+      if (source) scrollPos.source = source.scrollTop;
+      if (scrollPos.rich !== undefined || scrollPos.source !== undefined) saveScroll(key, scrollPos);
+    };
+    const onScroll = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.classList.contains("mdpro-scroll") && !state.current.sourceMode) scrollPos.rich = target.scrollTop;
+      else if (target === sourceScroller()) scrollPos.source = target.scrollTop;
+      else return;
+      if (saveTimer === undefined) saveTimer = setTimeout(flushScroll, SCROLL_SAVE_MS);
+    };
+    root.addEventListener("scroll", onScroll, true);
+
+    // Content (Mermaid, images) keeps growing after first paint, so re-apply
+    // the saved offset until the scroller can hold it; any scroll gesture
+    // cancels the retry and the user wins.
+    const wantRich = experimental_lineRange == null && restoredScrollKey.current !== key ? loadScroll(key)?.rich : undefined;
+    let stopRestore: (() => void) | undefined;
+    if (typeof wantRich === "number" && wantRich > 0) {
+      restoredScrollKey.current = key;
+      const want = wantRich;
+      const started = Date.now();
+      const cancelEvents = ["wheel", "touchmove", "keydown", "pointerdown"];
+      let retry: ReturnType<typeof setTimeout> | undefined;
+      const cancel = () => {
+        for (const name of cancelEvents) root.removeEventListener(name, cancel, true);
+        if (retry !== undefined) clearTimeout(retry);
+      };
+      stopRestore = cancel;
+      const tick = () => {
+        retry = undefined;
+        if (Date.now() - started > SCROLL_RESTORE_MS) return cancel();
+        const el = richScroller();
+        if (el) {
+          el.scrollTop = want;
+          if (el.scrollTop >= want) return cancel();
+        }
+        retry = setTimeout(tick, SCROLL_RETRY_MS);
+      };
+      for (const name of cancelEvents) root.addEventListener(name, cancel, true);
+      tick();
+    }
+
+    return () => {
+      root.removeEventListener("scroll", onScroll, true);
+      stopRestore?.();
+      if (saveTimer !== undefined) clearTimeout(saveTimer);
+      flushScroll();
+    };
+  }, [scrollMemKey, experimental_lineRange]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The source editor mounts on demand; land it on the remembered offset too.
+  useEffect(() => {
+    if (!sourceMode || !scrollMemKey || experimental_lineRange != null || restoredSourceKey.current === scrollMemKey) return;
+    restoredSourceKey.current = scrollMemKey;
+    const want = loadScroll(scrollMemKey)?.source;
+    const view = sourceHandle.view;
+    if (want === undefined || !view) return;
+    const apply = () => {
+      if (view.dom.isConnected) view.scrollDOM.scrollTop = want;
+    };
+    apply();
+    view.requestMeasure({ read: () => want, write: apply });
+  }, [sourceMode, scrollMemKey, experimental_lineRange, sourceHandle]);
 
   const toggleSource = () => {
     if (!doc) return;

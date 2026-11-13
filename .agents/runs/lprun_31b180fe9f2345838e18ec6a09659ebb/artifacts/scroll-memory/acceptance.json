@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "task_id": "scroll-memory",
+  "task_sha256": "045ffb8459d5a0ee2eac1d031b742341ab247af423606e4abc40bbbf8dda25a2",
+  "attempt": 1,
+  "provider_exit": 0,
+  "report": "complete",
+  "report_sha256": "068d072540c9b5f6378d288c76cf2893e6ef12d667cfa07e1b98086b403226e0",
+  "owns_check": "passed",
+  "verification": "passed",
+  "review": "not_required",
+  "accepted": true,
+  "accepted_at": "2026-11-13T00:46:31.681Z",
+  "model": "swe-2-flash-medium"
+}
