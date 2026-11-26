@@ -40,9 +40,9 @@ export function parseTree(code: string): TreeNode[] {
   const levels = [...new Set(rows.map((row) => row.indent))].sort((a, b) => a - b);
   const nodes: TreeNode[] = rows.map((row) => ({
     depth: levels.indexOf(row.indent),
-    name: row.name.replace(/\/$/, ""),
+    name: row.name.replace(/[\\/]$/, ""),
     comment: row.comment,
-    folder: row.name.endsWith("/"),
+    folder: /[\\/]$/.test(row.name),
   }));
   nodes.forEach((node, index) => {
     const next = nodes[index + 1];

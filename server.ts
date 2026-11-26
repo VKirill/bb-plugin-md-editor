@@ -4,6 +4,8 @@ import { defineRpcContract, type BbPluginApi } from "@get-bb/plugin-sdk";
 import { z } from "zod";
 import { locate, LocateError, type Lang, type LocateSdk } from "./locate.ts";
 
+import { dirnamePath } from "./paths";
+
 const say = (lang: Lang, en: string, ru: string) => (lang === "ru" ? ru : en);
 
 export const MAX_BYTES = 5 * 1024 * 1024;
@@ -107,7 +109,7 @@ export default function plugin(bb: BbPluginApi) {
     },
     assetBase: async ({ source, path, locale = "en" }) => {
       const where = await locate(sdk, source, path, locale);
-      const rootPath = where.rootPath ?? where.absPath.slice(0, where.absPath.lastIndexOf("/")) ?? "/";
+      const rootPath = where.rootPath ?? dirnamePath(where.absPath);
       const preview = await bb.sdk.files.createPreview({ hostId: where.hostId, rootPath, ttlMs: 60 * 60 * 1000 });
       return { baseUrl: preview.baseUrl, rootPath };
     },
