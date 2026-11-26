@@ -657,7 +657,7 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
     return true;
   };
 
-  if (useOriginal) return <OriginalPreview Original={Original} onEdit={() => setUseOriginal(false)} />;
+  if (useOriginal) return <OriginalPreview Original={Original} onEdit={() => { setUseOriginal(false); selectMode("edit"); }} />;
 
   const status = saveState === "saving" ? t("saving") : dirty ? t("unsaved") : saveState === "saved" ? t("saved") : null;
 

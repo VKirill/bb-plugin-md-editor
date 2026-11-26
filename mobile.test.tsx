@@ -185,5 +185,6 @@ test("the actions menu opens the standard preview for a loaded document", async 
     assert.ok(button(el, t("edit")));
     await click(button(el, t("edit")));
     assert.ok(el.querySelector(".mdpro-editor"));
+    assert.equal(el.querySelector(".mdpro-prose")?.getAttribute("contenteditable"), "true");
   } finally { await act(async () => root.unmount()); el.remove(); }
 });
