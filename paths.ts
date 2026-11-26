@@ -33,6 +33,11 @@ export function dirnamePath(input: string): string {
 }
 
 export function resolvePath(directory: string, target: string): string {
+  if (isWindowsPath(directory) && /^[\\/](?![\\/])/.test(target)) {
+    const normalized = normalizePath(directory);
+    const root = /^[a-z]:\//i.exec(normalized)?.[0] ?? /^\/\/[^/]+\/[^/]+\//.exec(normalized)![0];
+    return normalizePath(`${root}${target.slice(1)}`, true);
+  }
   return isAbsolutePath(target) ? normalizePath(target) : normalizePath(`${directory}/${target}`, isWindowsPath(directory));
 }
 

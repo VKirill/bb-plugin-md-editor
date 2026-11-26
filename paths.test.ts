@@ -10,6 +10,8 @@ test("path roots determine the dialect, independent of this OS", () => {
     assert.equal(normalizePath(`${root}../../x`), `${normalizePath(root)}x`);
     assert.equal(dirnamePath(`${root}index.md`), normalizePath(root));
     assert.equal(resolvePath(root, "docs\\a.md"), `${normalizePath(root)}docs/a.md`);
+    assert.equal(resolvePath(`${root}docs`, "\\assets\\a.png"), `${normalizePath(root)}assets/a.png`);
+    assert.equal(resolvePath(`${root}docs`, "/assets/a.png"), `${normalizePath(root)}assets/a.png`);
   }
   assert.equal(isAbsolutePath("C:relative.md"), false);
   assert.equal(normalizePath("/a/./b/../c//d"), "/a/c/d");
