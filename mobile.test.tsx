@@ -123,3 +123,68 @@ test("mobile modes keep source read-only and resizing never enables editing", as
     assert.equal(writes.length, 0);
   } finally { smallScreen = true; await act(async () => root.unmount()); el.remove(); }
 });
+
+test("standard preview docks Edit in the host header and returns to Markdown PRO", async () => {
+  const { el, root } = host();
+  const previousCall = rpc.call;
+  rpc.call = async (method, input) => {
+    if (method === "open") throw new Error("Cannot load in the rich editor");
+    return previousCall(method, input);
+  };
+  const Original = () => createElement("div", null,
+    createElement("div", { role: "tablist" },
+      createElement("button", { "aria-pressed": true }, "Preview"),
+      createElement("button", { "aria-pressed": false }, "Raw")),
+    createElement("p", null, "Host document"));
+  const props = { path: "read.md", source: { kind: "host", experimental_hostId: "host", threadId: null, environmentId: null, projectId: null }, experimental_lineRange: null, Original };
+  try {
+    await act(async () => root.render(createElement(Opener, props)));
+    await flush();
+    await click(button(el, t("standardPreview")));
+    assert.ok(el.textContent?.includes("Host document"));
+    const toggle = el.querySelector<HTMLElement>('[role="tablist"]');
+    assert.equal(toggle?.style.display, "none");
+    assert.equal(el.querySelectorAll('[data-mdpro-edit-dock]').length, 1);
+    await act(async () => toggle!.appendChild(document.createElement("span")));
+    await flush();
+    assert.equal(el.querySelectorAll('[data-mdpro-edit-dock]').length, 1);
+    rpc.call = previousCall;
+    await click(button(el, t("edit")));
+    await flush();
+    assert.equal(el.querySelector('[data-mdpro-edit-dock]'), null);
+    assert.ok(!el.textContent?.includes("Host document"));
+  } finally { rpc.call = previousCall; await act(async () => root.unmount()); el.remove(); }
+});
+
+test("standard preview keeps Edit available when the host has no mode toggle", async () => {
+  const { el, root } = host();
+  const previousCall = rpc.call;
+  rpc.call = async (method, input) => {
+    if (method === "open") throw new Error("Cannot load in the rich editor");
+    return previousCall(method, input);
+  };
+  const props = { path: "read.md", source: { kind: "host", experimental_hostId: "host", threadId: null, environmentId: null, projectId: null }, experimental_lineRange: null, Original: () => createElement("p", null, "Host document") };
+  try {
+    await act(async () => root.render(createElement(Opener, props)));
+    await flush();
+    await click(button(el, t("standardPreview")));
+    assert.ok(button(el, t("edit")));
+    assert.ok(el.textContent?.includes("Host document"));
+  } finally { rpc.call = previousCall; await act(async () => root.unmount()); el.remove(); }
+});
+
+test("the actions menu opens the standard preview for a loaded document", async () => {
+  const { el, root } = host();
+  const props = { path: "read.md", source: { kind: "host", experimental_hostId: "host", threadId: null, environmentId: null, projectId: null }, experimental_lineRange: null, Original: () => createElement("p", null, "Standard document") };
+  try {
+    await act(async () => root.render(createElement(Opener, props)));
+    await flush();
+    await click(el.querySelector(`[aria-label="${t("moreActions")}"]`));
+    await click(button(document.body, t("standardPreview")) ?? Array.from(document.querySelectorAll('[role="menuitem"]')).find(item => item.textContent?.trim() === t("standardPreview")) ?? null);
+    assert.ok(el.textContent?.includes("Standard document"));
+    assert.ok(button(el, t("edit")));
+    await click(button(el, t("edit")));
+    assert.ok(el.querySelector(".mdpro-editor"));
+    assert.equal(el.querySelector(".mdpro-prose")?.getAttribute("contenteditable"), "true");
+  } finally { await act(async () => root.unmount()); el.remove(); }
+});
