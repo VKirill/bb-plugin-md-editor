@@ -332,6 +332,18 @@ const RichCodeBlock = CodeBlockLowlight.extend({
 
 export type AssetResolver = (src: string) => string;
 
+/** Re-resolve existing image nodes when the asynchronous preview URL arrives. */
+export function refreshImageSources(editor: Editor, resolve: { current: AssetResolver }) {
+  if (editor.isDestroyed) return;
+  editor.state.doc.descendants((node, pos) => {
+    if (node.type.name !== "image") return;
+    const dom = editor.view.nodeDOM(pos);
+    if (dom instanceof HTMLElement && dom.tagName === "IMG") {
+      (dom as HTMLImageElement).src = resolve.current(String(node.attrs.src ?? ""));
+    }
+  });
+}
+
 function openLightbox(src: string, alt: string) {
   const overlay = document.createElement("div");
   overlay.className = "mdpro-lightbox";
@@ -370,6 +382,7 @@ function imageExtension(resolve: { current: AssetResolver }) {
           if (event.metaKey || event.ctrlKey) openLightbox(img.src, String(current.attrs.alt ?? ""));
         });
         img.addEventListener("error", () => img.classList.add("mdpro-img-broken"));
+        img.addEventListener("load", () => img.classList.remove("mdpro-img-broken"));
         apply(node);
         return {
           dom: img,
