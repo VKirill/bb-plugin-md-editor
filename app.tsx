@@ -198,6 +198,77 @@ export function PropertiesPanel({ value, onChange, editable }: { value: string; 
   );
 }
 
+const EDIT_DOCK_ATTR = "data-mdpro-edit-dock";
+
+// BB's standard preview with Edit docked in its header in place of the
+// Preview/Raw toggle. BB has no slot there, so this keys on the toggle's
+// markup (a tablist of two aria-pressed buttons) and keeps a separate Edit bar
+// when the header has no toggle.
+function OriginalPreview({ Original, onEdit }: { Original: PluginFileOpenerProps["Original"]; onEdit: () => void }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const onEditRef = useRef(onEdit);
+  onEditRef.current = onEdit;
+  const [docked, setDocked] = useState(false);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    let toggle: HTMLElement | null = null;
+    const dock = () => {
+      const found = Array.from(root.querySelectorAll<HTMLElement>('[role="tablist"]')).find(
+        (list) => list.querySelectorAll("button[aria-pressed]").length === 2,
+      ) ?? null;
+      if (!found) {
+        setDocked(false);
+        return;
+      }
+      const [preview, raw] = Array.from(found.querySelectorAll<HTMLButtonElement>("button[aria-pressed]"));
+      if (raw.getAttribute("aria-pressed") === "true") preview.click();
+      toggle = found;
+      found.style.display = "none";
+      if (found.nextElementSibling?.hasAttribute(EDIT_DOCK_ATTR)) {
+        setDocked(true);
+        return;
+      }
+      root.querySelectorAll(`[${EDIT_DOCK_ATTR}]`).forEach((node) => node.remove());
+      const wrap = document.createElement("div");
+      wrap.setAttribute(EDIT_DOCK_ATTR, "");
+      wrap.className = found.className;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = raw.className;
+      button.textContent = t("edit");
+      button.addEventListener("click", () => onEditRef.current());
+      wrap.appendChild(button);
+      found.after(wrap);
+      setDocked(true);
+    };
+    dock();
+    const observer = new MutationObserver(dock);
+    observer.observe(root, { childList: true, subtree: true });
+    return () => {
+      observer.disconnect();
+      root.querySelectorAll(`[${EDIT_DOCK_ATTR}]`).forEach((node) => node.remove());
+      if (toggle) toggle.style.display = "";
+    };
+  }, []);
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      {docked ? null : (
+        <div className="flex items-center justify-end border-b border-border px-2 py-1">
+          <Button variant="ghost" size="sm" onClick={onEdit}>
+            <Icon name="Edit" className="size-3.5" /> {t("edit")}
+          </Button>
+        </div>
+      )}
+      <div ref={rootRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <Original />
+      </div>
+    </div>
+  );
+}
+
 function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: PluginFileOpenerProps) {
   const rpc = useRpc<typeof rpcContract>();
   const navigate = useBbNavigate();
@@ -586,20 +657,7 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
     return true;
   };
 
-  if (useOriginal) {
-    return (
-      <div className="flex h-full min-h-0 flex-col">
-        <div className="flex items-center justify-end border-b border-border px-2 py-1">
-          <Button variant="ghost" size="sm" onClick={() => setUseOriginal(false)}>
-            <Icon name="Edit" className="size-3.5" /> Markdown PRO
-          </Button>
-        </div>
-        <div className="min-h-0 flex-1">
-          <Original />
-        </div>
-      </div>
-    );
-  }
+  if (useOriginal) return <OriginalPreview Original={Original} onEdit={() => setUseOriginal(false)} />;
 
   const status = saveState === "saving" ? t("saving") : dirty ? t("unsaved") : saveState === "saved" ? t("saved") : null;
 
@@ -646,6 +704,9 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
               {dirty ? <DropdownMenuItem disabled={saveState === "saving"} onSelect={() => void save()}>
                 {t("save")}
               </DropdownMenuItem> : null}
+              <DropdownMenuItem onSelect={() => setUseOriginal(true)}>
+                {t("standardPreview")}
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => { setFontSizeDraft(fontSize === null ? "" : String(fontSize)); setFontSizeOpen(true); }}>
                 {t("fontSize")}
               </DropdownMenuItem>
