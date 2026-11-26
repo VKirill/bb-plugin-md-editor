@@ -94,6 +94,35 @@ export function resolveAssetUrl(src: string, absPath: string, base: { baseUrl: s
   return relative === null ? src : `${base.baseUrl.replace(/\/?$/, "/")}${encodePathSegments(relative)}`;
 }
 
+/** Decode URL text separately from literal characters supplied by Markdown. */
+function markdownDestination(input: string, windows: boolean): { pathPart: string; suffix: string } {
+  let pathPart = "";
+  let raw = "";
+  let index = 0;
+  const flush = () => { pathPart += decodeSafe(raw); raw = ""; };
+  while (index < input.length) {
+    const character = input[index];
+    if (!windows && character === "\\" && index + 1 < input.length && "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".includes(input[index + 1])) {
+      flush();
+      pathPart += input[index + 1];
+      index += 2;
+      continue;
+    }
+    const reference = character === "&" ? /^&(?:#[0-9]{1,7}|#[xX][\da-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});/.exec(input.slice(index))?.[0] : undefined;
+    if (reference && decodeHTMLStrict(reference) !== reference) {
+      flush();
+      pathPart += decodeHTMLStrict(reference);
+      index += reference.length;
+      continue;
+    }
+    if (character === "#" || character === "?" || (character === ":" && /^:\d+(?::\d+)?$/.test(input.slice(index)))) break;
+    raw += character;
+    index++;
+  }
+  flush();
+  return { pathPart, suffix: input.slice(index) };
+}
+
 const INLINE_LINK = /(!?\[(?:[^\]\\]|\\.)*\]\()(<[^>\n]*>|[^)\s]+)((?:\s+(?:"[^"\n]*"|'[^'\n]*'))?\))/g;
 const REFERENCE_DEF = /^( {0,3}\[[^\]\n]+\]:\s*)(<[^>\n]*>|\S+)/gm;
 
@@ -107,27 +136,8 @@ export function absolutizeLinks(content: string, absPath: string): string {
   const fix = (target: string) => {
     const bare = target.startsWith("<") ? target.slice(1, -1) : target;
     if (bare === "" || bare.startsWith("#") || (!isWindowsPath(bare) && /^[a-z][a-z0-9+.-]*:(?!\d)/i.test(bare))) return target;
-    // Protect characters supplied by Markdown syntax before splitting URL
-    // fragments. For example, &#35; names a literal # in the filename.
-    let destination = bare;
-    if (!isWindowsPath(absPath) && !isWindowsPath(bare)) {
-      destination = destination.replace(/\\(.)/g, (match, character: string) =>
-        "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".includes(character) ? encodeURIComponent(character) : match);
-    }
-    destination = destination.replace(/&(?:#[0-9]{1,7}|#[xX][\da-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});/g, (reference) => {
-      const decoded = decodeHTMLStrict(reference);
-      return decoded === reference ? reference : encodeURIComponent(decoded);
-    });
-    const suffixIndex = destination.search(/[?#]|:\d+(?::\d+)?$/);
-    const pathPart = suffixIndex === -1 ? destination : destination.slice(0, suffixIndex);
-    const suffix = suffixIndex === -1 ? "" : destination.slice(suffixIndex);
-    let decoded = pathPart;
-    try {
-      decoded = decodeURIComponent(pathPart);
-    } catch {
-      /* keep literal */
-    }
-    const absolute = resolvePath(dir, decoded);
+    const { pathPart, suffix } = markdownDestination(bare, isWindowsPath(absPath) || isWindowsPath(bare));
+    const absolute = resolvePath(dir, pathPart);
     // File URLs keep Windows drive letters out of the URL-scheme parser and
     // preserve UNC authorities in the host Markdown renderer.
     const encoded = isWindowsPath(absolute)

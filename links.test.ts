@@ -155,3 +155,11 @@ test("absolutizing preserves Markdown entities, escapes and literal percent-enco
   assert.equal(absolutizeLinks('[x](a\\#b.md)', '/w/index.md'), '[x](</w/a%23b.md>)');
   assert.equal(absolutizeLinks('[x](a\\&amp;b.md)', '/w/index.md'), '[x](</w/a%26amp%3Bb.md>)');
 });
+
+
+test("literal percent signs do not corrupt decoded entities or Markdown escapes", async () => {
+  const { absolutizeLinks } = await import("./links.ts");
+  assert.equal(absolutizeLinks('[x](a%&amp;b.md)', '/w/index.md'), '[x](</w/a%25%26b.md>)');
+  assert.equal(absolutizeLinks('[x](a%\\#b.md)', '/w/index.md'), '[x](</w/a%25%23b.md>)');
+  assert.equal(absolutizeLinks('[x](a%20&amp;b.md)', '/w/index.md'), '[x](</w/a%20%26b.md>)');
+});
