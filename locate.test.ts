@@ -74,3 +74,45 @@ test("changed-file paths relative to an enclosing Git root resolve there", async
   assert.equal((await locate(withFs, src, "README.md")).absPath, "/repo/apps/bot/README.md");
   assert.equal((await locate(withFs, src, "missing.md")).absPath, "/repo/apps/bot/missing.md");
 });
+
+for (const root of ["C:\\Project", "C:/Project", "\\\\server\\share\\Project"]) {
+  test(`remote Windows roots on any server OS: ${root}`, async () => {
+    const path = await import("node:path");
+    const { within } = await import("./locate.ts");
+    const windowsSdk: LocateSdk = {
+      ...sdk,
+      environments: { get: async () => ({ hostId: "windows", path: root }) },
+      threads: { ...sdk.threads, storageLocation: async () => ({ hostId: "windows", storageRootPath: root }) },
+    };
+    const workspace = { ...base, kind: "workspace" as const, environmentId: "env_win" };
+    const absPath = path.win32.join(root, "docs", "a.md");
+    assert.deepEqual(await locate(windowsSdk, workspace, "docs/a.md"), { hostId: "windows", absPath, rootPath: root });
+    assert.equal((await locate(windowsSdk, workspace, "docs\\a.md")).absPath, absPath);
+    assert.equal((await locate(windowsSdk, workspace, absPath)).absPath, absPath);
+    assert.equal((await locate(windowsSdk, { ...base, kind: "host", hostId: "windows" }, `${root}/docs/a.md`)).absPath, absPath);
+    assert.equal((await locate(windowsSdk, { ...base, kind: "thread-storage", threadId: "thr_win" }, "docs/a.md")).absPath, absPath);
+    for (const escape of ["../outside.md", "..\\outside.md", "D:\\outside.md", "\\\\other\\share\\x.md"]) {
+      assert.throws(() => within(root, escape));
+      await assert.rejects(locate(windowsSdk, workspace, escape.startsWith("..") ? escape : `../${escape}`));
+    }
+  });
+}
+
+test("Windows changed-file paths find the enclosing repository on their own host", async () => {
+  const existing = new Set(["C:\\repo\\.git", "C:\\repo\\docs\\a.md"]);
+  const windowsSdk: LocateSdk = {
+    ...sdk,
+    environments: { get: async () => ({ hostId: "windows", path: "C:\\repo\\apps\\bot" }) },
+    hosts: { pathsExist: async ({ hostId, paths }) => {
+      assert.equal(hostId, "windows");
+      return { existence: Object.fromEntries(paths.map((p) => [p, existing.has(p)])) };
+    } },
+  };
+  assert.equal((await locate(windowsSdk, { ...base, kind: "workspace", environmentId: "env_win" }, "docs/a.md")).absPath, "C:\\repo\\docs\\a.md");
+});
+
+test("control characters in file paths are rejected before location lookup", async () => {
+  for (const path of ["bad\x00.md", "bad\x1f.md"]) {
+    await assert.rejects(locate(sdk, { ...base, kind: "host" }, path), /Invalid file path/);
+  }
+});

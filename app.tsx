@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import type { rpcContract } from "./server";
 import { MarkdownEditor, revealLines, type EditorHandle } from "./editor";
 import { RICH_CSS, RichMarkdownEditor, revealSourceLine, type AssetResolver } from "./rich";
-import { dirnamePosix, normalizePosix, resolveLink, type DocumentContext } from "./links";
+import { resolveAssetUrl, resolveLink, type DocumentContext } from "./links";
 import { joinFrontMatter, splitFrontMatter } from "./frontmatter";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -338,17 +338,7 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
   resolveAsset.current = (src) => {
     const base = assetBase.current;
     if (!doc || !base || src === "" || /^(https?:|data:|blob:)/i.test(src)) return src;
-    let decoded = src;
-    try {
-      decoded = decodeURIComponent(src.split(/[?#]/)[0]);
-    } catch {
-      /* literal */
-    }
-    const absolute = normalizePosix(decoded.startsWith("/") ? decoded : `${dirnamePosix(doc.absPath)}/${decoded}`);
-    const root = base.rootPath.endsWith("/") ? base.rootPath : `${base.rootPath}/`;
-    if (!absolute.startsWith(root)) return src;
-    const relative = absolute.slice(root.length).split("/").map(encodeURIComponent).join("/");
-    return `${base.baseUrl.replace(/\/?$/, "/")}${relative}`;
+    return resolveAssetUrl(src, doc.absPath, base);
   };
 
   const save = useCallback(

@@ -123,3 +123,20 @@ test("mobile modes keep source read-only and resizing never enables editing", as
     assert.equal(writes.length, 0);
   } finally { smallScreen = true; await act(async () => root.unmount()); el.remove(); }
 });
+
+test("native Windows links survive the rich editor URI validation and click handling", async () => {
+  const { el, root } = host();
+  const received: string[] = [];
+  const markdown = '[drive](<C:\\Project\\a.md>) [forward](C:/Project/b.md) [unc](<\\\\\\\\server\\share\\c.md>) [unsafe](javascript:alert)';
+  const props = { initialMarkdown: markdown, editable: false, showToolbar: false, resolveAsset: { current: (src: string) => src }, onReady() {}, onChange() {}, onLink: (href: string) => { received.push(href); return true; }, onThread() {}, onQuote() {}, onReference() {}, onEditMath() {}, onEditLink() {} };
+  try {
+    await act(async () => root.render(createElement(RichMarkdownEditor, props)));
+    await flush();
+    for (const label of ['drive', 'forward', 'unc']) {
+      const anchor = Array.from(el.querySelectorAll('a')).find(a => a.textContent === label);
+      await click(anchor ?? null);
+    }
+    assert.deepEqual(received, ['C:\\Project\\a.md', 'C:/Project/b.md', '\\\\server\\share\\c.md']);
+    assert.equal(el.querySelector('a[href^="javascript:"]'), null);
+  } finally { await act(async () => root.unmount()); el.remove(); }
+});

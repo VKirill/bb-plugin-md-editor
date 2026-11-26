@@ -1,6 +1,7 @@
 // Rich Markdown editor (Tiptap): formatted text edited in place, a style
 // toolbar, Mermaid diagrams, KaTeX math, GFM tables and task lists.
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { isWindowsPath } from "./paths";
 import type { ReactNode } from "react";
 import { EditorContent, NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor, useEditorState } from "@tiptap/react";
 import type { Editor, ReactNodeViewProps } from "@tiptap/react";
@@ -475,7 +476,8 @@ export function RichMarkdownEditor(props: RichEditorProps) {
     extensions: [
       StarterKit.configure({
         codeBlock: false,
-        link: { openOnClick: false, autolink: true, linkOnPaste: true, enableClickSelection: false },
+        link: { openOnClick: false, autolink: true, linkOnPaste: true, enableClickSelection: false,
+          isAllowedUri: (url, context) => isWindowsPath(url) || context.defaultValidate(url) },
       }),
       RichCodeBlock,
       imageExtension(props.resolveAsset),
