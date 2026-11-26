@@ -48,6 +48,35 @@ function host() { const el = document.createElement("div"); document.body.append
 async function click(el: Element | null) { assert.ok(el); await act(async () => { el.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true })); }); await flush(); }
 function button(el: Element, label: string) { return Array.from(el.querySelectorAll("button")).find(b => b.textContent?.trim() === label) ?? null; }
 
+test("images already mounted are refreshed when the preview URL arrives", async () => {
+  const { el, root } = host();
+  const previousContent = loaded.content;
+  const previousCall = rpc.call;
+  let resolveBase!: (value: { baseUrl: string; rootPath: string }) => void;
+  const pending = new Promise<{ baseUrl: string; rootPath: string }>(resolve => { resolveBase = resolve; });
+  loaded.content = "# Read\n\nA slide ![Slide](assets/slide.png) in the document.\n";
+  rpc.call = async (method, input) => method === "assetBase" ? pending : previousCall(method, input);
+  const beforeWrites = writes.length;
+  localStorage.setItem("md-editor:autosave", "off");
+  const props = { path: "read.md", source: { kind: "host", experimental_hostId: "host", threadId: null, environmentId: null, projectId: null }, experimental_lineRange: null, Original: () => null };
+  try {
+    await act(async () => root.render(createElement(Opener, props)));
+    await flush();
+    const img = el.querySelector<HTMLImageElement>(".mdpro-prose img");
+    assert.ok(img);
+    img.dispatchEvent(new dom.window.Event("error"));
+    assert.ok(img.classList.contains("mdpro-img-broken"));
+    await act(async () => { resolveBase({ baseUrl: "https://bb.test/preview", rootPath: "/test" }); });
+    await flush();
+    assert.equal(img.src, "https://bb.test/preview/assets/slide.png");
+    img.dispatchEvent(new dom.window.Event("load"));
+    assert.equal(img.classList.contains("mdpro-img-broken"), false);
+    assert.equal(writes.length, beforeWrites, "loading images must not rewrite Markdown");
+  } finally {
+    await act(async () => root.unmount()); el.remove(); loaded.content = previousContent; rpc.call = previousCall;
+  }
+});
+
 // This failed in the submitted PR: editingYaml hid both the card and the editor.
 test("leaving YAML editing shows properties and hides its editor", async () => {
   const { el, root } = host();
@@ -122,4 +151,33 @@ test("mobile modes keep source read-only and resizing never enables editing", as
     assert.equal(el.querySelector(".mdpro-prose")?.getAttribute("contenteditable"), "false");
     assert.equal(writes.length, 0);
   } finally { smallScreen = true; await act(async () => root.unmount()); el.remove(); }
+});
+
+test("a late preview response cannot replace the next document's image base", async () => {
+  const { el, root } = host();
+  const previousCall = rpc.call;
+  let oldBase!: (value: { baseUrl: string; rootPath: string }) => void;
+  let newBase!: (value: { baseUrl: string; rootPath: string }) => void;
+  const oldPending = new Promise<{ baseUrl: string; rootPath: string }>(resolve => { oldBase = resolve; });
+  const newPending = new Promise<{ baseUrl: string; rootPath: string }>(resolve => { newBase = resolve; });
+  rpc.call = async (method, input) => {
+    const { path } = input as { path: string };
+    if (method === "open") return { ...loaded, content: "# Document\n\nInline ![Image](assets/a.png) in the document.\n", absPath: `/${path}`, rootPath: "/" };
+    if (method === "assetBase") return path === "first.md" ? oldPending : newPending;
+    return previousCall(method, input);
+  };
+  const source = { kind: "host", experimental_hostId: "host", threadId: null, environmentId: null, projectId: null };
+  try {
+    await act(async () => root.render(createElement(Opener, { path: "first.md", source, experimental_lineRange: null, Original: () => null })));
+    await flush();
+    await act(async () => root.render(createElement(Opener, { path: "second.md", source, experimental_lineRange: null, Original: () => null })));
+    await flush();
+    await act(async () => newBase({ baseUrl: "https://bb.test/new", rootPath: "/" }));
+    await flush();
+    const img = el.querySelector<HTMLImageElement>(".mdpro-prose img");
+    assert.equal(img?.src, "https://bb.test/new/assets/a.png");
+    await act(async () => oldBase({ baseUrl: "https://bb.test/old", rootPath: "/" }));
+    await flush();
+    assert.equal(img?.src, "https://bb.test/new/assets/a.png");
+  } finally { rpc.call = previousCall; await act(async () => root.unmount()); el.remove(); }
 });

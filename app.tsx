@@ -10,7 +10,7 @@ import { parseDocument } from "yaml";
 import { toast } from "sonner";
 import type { rpcContract } from "./server";
 import { MarkdownEditor, revealLines, type EditorHandle } from "./editor";
-import { RICH_CSS, RichMarkdownEditor, revealSourceLine, type AssetResolver } from "./rich";
+import { RICH_CSS, RichMarkdownEditor, revealSourceLine, refreshImageSources, type AssetResolver } from "./rich";
 import { dirnamePosix, normalizePosix, resolveLink, type DocumentContext } from "./links";
 import { joinFrontMatter, splitFrontMatter } from "./frontmatter";
 import { Button } from "@/components/ui/button";
@@ -331,9 +331,14 @@ function MarkdownFileOpener({ path, source, experimental_lineRange, Original }: 
   const resolveAsset = useRef<AssetResolver>((src) => src);
   useEffect(() => {
     if (!doc) return;
+    let cancelled = false;
+    assetBase.current = null;
     rpc.call("assetBase", request).then((base) => {
+      if (cancelled) return;
       assetBase.current = base;
+      if (richRef.current) refreshImageSources(richRef.current, resolveAsset);
     }, () => undefined);
+    return () => { cancelled = true; };
   }, [doc?.absPath, rpc, request]); // eslint-disable-line react-hooks/exhaustive-deps
   resolveAsset.current = (src) => {
     const base = assetBase.current;
