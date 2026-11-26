@@ -110,3 +110,9 @@ test("Windows changed-file paths find the enclosing repository on their own host
   };
   assert.equal((await locate(windowsSdk, { ...base, kind: "workspace", environmentId: "env_win" }, "docs/a.md")).absPath, "C:\\repo\\docs\\a.md");
 });
+
+test("control characters in file paths are rejected before location lookup", async () => {
+  for (const path of ["bad\x00.md", "bad\x1f.md"]) {
+    await assert.rejects(locate(sdk, { ...base, kind: "host" }, path), /Invalid file path/);
+  }
+});
