@@ -138,3 +138,20 @@ test("absolutizing native Windows destinations emits encoded file URLs and prese
   assert.equal(absolutizeLinks(content, 'C:\\Project\\docs\\index.md'),
     '[drive](<file:///C:/Project/a%20b.md>) [unc](<file://server/share/a%20b.md>) [line](<file:///C:/Project/a.md:12:4>)');
 });
+
+test("absolutizing preserves Markdown entities, escapes and literal percent-encoded entity text", async () => {
+  const { absolutizeLinks } = await import("./links.ts");
+  for (const directory of ["/w", "C:/w", "\\\\server\\share\\w"]) {
+    const src = '[amp](a&amp;b.md) [hash](a&#35;b.md#L2) [percent](a&#x25;b.md) [named](a&copy;b.md) [literal](a%26amp%3Bb.md)';
+    const rewritten = absolutizeLinks(src, `${directory}/index.md`);
+    const hrefs = [...rewritten.matchAll(/\(<([^>]+)>\)/g)].map(match => match[1]);
+    assert.equal(hrefs.length, 5);
+    const doc = { ...workspaceDoc, absPath: `${directory}/index.md`, rootPath: directory };
+    for (const [index, name] of ["a&b.md", "a#b.md", "a%b.md", "a©b.md", "a&amp;b.md"].entries()) {
+      const action = resolveLink(hrefs[index], doc);
+      assert.equal(action?.type === "file" && action.target.path, name);
+    }
+  }
+  assert.equal(absolutizeLinks('[x](a\\#b.md)', '/w/index.md'), '[x](</w/a%23b.md>)');
+  assert.equal(absolutizeLinks('[x](a\\&amp;b.md)', '/w/index.md'), '[x](</w/a%26amp%3Bb.md>)');
+});

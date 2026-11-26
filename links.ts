@@ -3,6 +3,7 @@
 // document's own machine.
 
 import { dirnamePath, encodePathSegments, isWindowsPath, relativeWithin, resolvePath } from "./paths";
+import { decodeHTMLStrict } from "entities";
 
 export type LiveFileTarget =
   | { kind: "workspace"; environmentId: string; path: string }
@@ -106,9 +107,20 @@ export function absolutizeLinks(content: string, absPath: string): string {
   const fix = (target: string) => {
     const bare = target.startsWith("<") ? target.slice(1, -1) : target;
     if (bare === "" || bare.startsWith("#") || (!isWindowsPath(bare) && /^[a-z][a-z0-9+.-]*:(?!\d)/i.test(bare))) return target;
-    const suffixIndex = bare.search(/[?#]|:\d+(?::\d+)?$/);
-    const pathPart = suffixIndex === -1 ? bare : bare.slice(0, suffixIndex);
-    const suffix = suffixIndex === -1 ? "" : bare.slice(suffixIndex);
+    // Protect characters supplied by Markdown syntax before splitting URL
+    // fragments. For example, &#35; names a literal # in the filename.
+    let destination = bare;
+    if (!isWindowsPath(absPath) && !isWindowsPath(bare)) {
+      destination = destination.replace(/\\(.)/g, (match, character: string) =>
+        "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".includes(character) ? encodeURIComponent(character) : match);
+    }
+    destination = destination.replace(/&(?:#[0-9]{1,7}|#[xX][\da-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});/g, (reference) => {
+      const decoded = decodeHTMLStrict(reference);
+      return decoded === reference ? reference : encodeURIComponent(decoded);
+    });
+    const suffixIndex = destination.search(/[?#]|:\d+(?::\d+)?$/);
+    const pathPart = suffixIndex === -1 ? destination : destination.slice(0, suffixIndex);
+    const suffix = suffixIndex === -1 ? "" : destination.slice(suffixIndex);
     let decoded = pathPart;
     try {
       decoded = decodeURIComponent(pathPart);
